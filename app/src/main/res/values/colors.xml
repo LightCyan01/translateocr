@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Palette -->
+    <color name="primary_light">#80EE98</color>
+    <color name="primary">#46DFB1</color>
+    <color name="primary_dark">#09D1C7</color>
+    <color name="secondary_light">#15919B</color>
+    <color name="secondary">#0C6478</color>
+    <color name="secondary_dark">#213A58</color>
+
+    <!-- Error Colors -->
+    <color name="error">#B00020</color>
+    <color name="error_light">#EF5350</color>
+    <color name="error_dark">#C62828</color>
+
+    <!-- Success Colors -->
+    <color name="success">#4CAF50</color>
+    <color name="success_light">#81C784</color>
+    <color name="success_dark">#388E3C</color>
+
+    <!-- Warning Colors -->
+    <color name="warning">#FF9800</color>
+    <color name="warning_light">#FFB74D</color>
+    <color name="warning_dark">#F57C00</color>
+
+    <!-- Info Colors -->
+    <color name="info">#2196F3</color>
+    <color name="info_light">#64B5F6</color>
+    <color name="info_dark">#1976D2</color>
+
+    <!-- Background and Surface -->
+    <color name="background">#FFFFFF</color>
+    <color name="surface">#F2F2F2</color>
+    <color name="on_background">#000000</color>
+    <color name="on_surface">#000000</color>
+</resources>
