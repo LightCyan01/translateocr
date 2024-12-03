@@ -16,13 +16,8 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         enableEdgeToEdge()
 
-        // Get the NavHostFragment
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
-
-        // Get the NavController from the NavHostFragment
         val navController = navHostFragment.navController
-
-        // Set up bottom navigation
         binding.bottomNavigation.setupWithNavController(navController)
     }
 

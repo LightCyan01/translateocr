@@ -58,6 +58,13 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
 
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.play.services)
+
+    // ML Kit Text Recognition
+    implementation(libs.text.recognition)
+
     // PermissionsDispatcher (for permission handling)
     implementation(libs.permissionsdispatcher)
     implementation(libs.androidx.activity)

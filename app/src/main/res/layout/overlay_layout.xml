@@ -18,6 +18,18 @@
         android:src="@drawable/ic_close_white_24dp" />
 
     <!-- Placeholder for OCR results -->
-    <!-- TODO: Add UI components to display OCR results here -->
+    <TextView
+        android:id="@+id/ocr_result_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:ellipsize="end"
+        android:maxLines="10"
+        android:scrollbars="vertical"
+        android:overScrollMode="always"
+        android:focusable="true"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:text="OCR Results will appear here" />
 
 </FrameLayout>

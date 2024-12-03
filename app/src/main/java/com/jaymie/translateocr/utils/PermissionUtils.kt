@@ -12,12 +12,6 @@ object PermissionUtils {
         return Settings.canDrawOverlays(context)
     }
 
-    // Check if the screen recording permission is granted
-    fun hasScreenRecordingPermission(): Boolean {
-        // MediaProjectionManager does not have a "granted" state, so request it explicitly
-        return false
-    }
-
     // Get intent to request permission to draw over other apps
     fun getOverlayPermissionIntent(context: Context): Intent {
         return Intent(

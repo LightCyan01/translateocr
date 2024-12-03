@@ -59,14 +59,14 @@ class FloatingButtonManager(private val context: Context) {
             // Show the loading spinner
             loadingSpinner?.visibility = View.VISIBLE
 
+            onClick() // Let the caller handle initiating screen capture
+
             // Simulate loading delay (e.g., translation processing)
             Handler(Looper.getMainLooper()).postDelayed({
                 // Reset button appearance and hide spinner
                 floatingButton.alpha = 1.0f
                 loadingSpinner?.visibility = View.GONE
 
-                // TODO: Trigger the translation logic (placeholder for now)
-                OverlayManager.getInstance().showOverlay(context)
             }, 2000)
         }
 

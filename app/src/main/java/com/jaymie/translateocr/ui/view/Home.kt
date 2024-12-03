@@ -1,8 +1,11 @@
 package com.jaymie.translateocr.ui.view
 
 import android.app.Dialog
+import android.content.Intent
+import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -13,9 +16,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.viewModels
 import com.jaymie.translateocr.R
+import com.jaymie.translateocr.data.service.ScreenCaptureService
 import com.jaymie.translateocr.databinding.FragmentHomeBinding
 import com.jaymie.translateocr.ui.viewmodel.HomeViewModel
 import com.jaymie.translateocr.utils.FloatingButtonManager
+import com.jaymie.translateocr.utils.OverlayManager
 import com.jaymie.translateocr.utils.PermissionUtils
 
 class Home : Fragment() {
@@ -33,18 +38,23 @@ class Home : Fragment() {
         checkPermissionsAndStart()
     }
 
-    private val screenRecordingPermissionLauncher = registerForActivityResult(
+
+    private val screenCaptureLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == AppCompatActivity.RESULT_OK) {
-            Toast.makeText(requireContext(), "Screen recording permission granted.", Toast.LENGTH_SHORT).show()
-            // Proceed to show the floating button
+        if (result.resultCode == AppCompatActivity.RESULT_OK && result.data != null) {
+            val serviceIntent = Intent(requireContext(), ScreenCaptureService::class.java).apply {
+                action = ScreenCaptureService.ACTION_INIT
+                putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, result.resultCode)
+                putExtra(ScreenCaptureService.EXTRA_DATA, result.data)
+            }
+            requireContext().startForegroundService(serviceIntent)
             floatingButtonManager.showFloatingButton {
-                // Delegate the click action to the ViewModel
-                viewModel.onFloatingButtonClicked()
+                viewModel.captureScreen()
             }
         } else {
-            Toast.makeText(requireContext(), "Screen recording permission denied.", Toast.LENGTH_SHORT).show()
+            Log.e("HomeFragment", "Screen capture permission denied or invalid")
+            Toast.makeText(requireContext(), "Screen capture permission denied.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -65,6 +75,7 @@ class Home : Fragment() {
 
         binding.stop.setOnClickListener {
             floatingButtonManager.removeFloatingButton()
+            viewModel.stopScreenCaptureService()
         }
 
         observeViewModel()
@@ -73,36 +84,26 @@ class Home : Fragment() {
     }
 
     private fun observeViewModel() {
-        // Observe LiveData from ViewModel to update UI or handle events
-        viewModel.showFloatingButton.observe(viewLifecycleOwner) { shouldShow ->
-            if (shouldShow) {
-                floatingButtonManager.showFloatingButton {
-                    viewModel.onFloatingButtonClicked()
-                }
-            }
+        // Observe OCR results from ViewModel
+        viewModel.ocrResult.observe(viewLifecycleOwner) { result ->
+            Log.d("HomeFragment", "Received OCR result: $result")
+            OverlayManager.getInstance().showOverlay(requireContext(), result)
         }
 
-        viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
-            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-        }
-
-        // TODO: Observe other LiveData for OCR results and update UI accordingly
+        // TODO: Observe LiveData for translation results in the future
+        // viewModel.translationResult.observe(viewLifecycleOwner) { translatedText ->
+        //     OverlayManager.getInstance().updateOverlayText(translatedText)
+        // }
     }
 
     private fun checkPermissionsAndStart() {
-        when {
-            !Settings.canDrawOverlays(requireContext()) -> {
-                showOverlayPermissionDialog()
-            }
-            !viewModel.hasScreenRecordingPermission() -> {
-                showScreenRecordingPermissionDialog()
-            }
-            else -> {
-                // All permissions granted, show the floating button
-                floatingButtonManager.showFloatingButton {
-                    viewModel.onFloatingButtonClicked()
-                }
-            }
+        Log.d("HomeFragment", "Checking permissions")
+        if (!Settings.canDrawOverlays(requireContext())) {
+            Log.d("HomeFragment", "Overlay permission not granted")
+            showOverlayPermissionDialog()
+        } else {
+            Log.d("HomeFragment", "Overlay permission granted, requesting screen capture")
+            requestScreenCapturePermission()
         }
     }
 
@@ -122,21 +123,10 @@ class Home : Fragment() {
         dialog.show()
     }
 
-    private fun showScreenRecordingPermissionDialog() {
-        val dialog = Dialog(requireContext())
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.screen_recording_permission_dialog, null)
-        dialog.setContentView(dialogView)
-
-        val acceptButton = dialogView.findViewById<Button>(R.id.permissionButton)
-        acceptButton.setOnClickListener {
-            val intent = PermissionUtils.getScreenRecordingPermissionIntent(requireContext())
-            screenRecordingPermissionLauncher.launch(intent)
-            dialog.dismiss()
-        }
-
-        dialog.setCancelable(true)
-        dialog.show()
+    private fun requestScreenCapturePermission() {
+        val mediaProjectionManager = requireContext().getSystemService(AppCompatActivity.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        val captureIntent = mediaProjectionManager.createScreenCaptureIntent()
+        screenCaptureLauncher.launch(captureIntent)
     }
 
 }
