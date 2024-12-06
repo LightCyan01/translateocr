@@ -212,6 +212,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     return
                 }
             }
+            TranslationService.GOOGLE_TRANSLATE,
+            TranslationService.DEEPL,
+            TranslationService.OFFLINE -> {
+                // No API key validation needed for these services
+            }
         }
 
         setDefaultLanguagesForService(service)
@@ -316,6 +321,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 if (preferencesManager.getDeepLApiKey().isNullOrBlank()) {
                     _toastMessage.value = "DeepL API key is not set"
                 }
+            }
+            TranslationService.GOOGLE_TRANSLATE,
+            TranslationService.DEEPL,
+            TranslationService.OFFLINE -> {
+                // These services don't require API keys, so no action needed
             }
         }
     }
