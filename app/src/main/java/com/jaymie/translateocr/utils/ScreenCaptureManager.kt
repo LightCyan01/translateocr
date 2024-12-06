@@ -10,7 +10,6 @@ import android.media.Image
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
-import android.util.DisplayMetrics
 import android.view.WindowManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -26,7 +25,7 @@ class ScreenCaptureManager(private val context: Context) {
     private val coroutineScope = CoroutineScope(Job() + Dispatchers.Main)
 
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val metrics = DisplayMetrics().also { windowManager.defaultDisplay.getRealMetrics(it) }
+    private val metrics = context.resources.displayMetrics
     
     companion object {
         private const val TAG = "ScreenCaptureManager"
@@ -102,7 +101,7 @@ class ScreenCaptureManager(private val context: Context) {
                     }
                 }
             } ?: run {
-                Log.e(TAG, "Failed to acquire image after 5 attempts")
+                Log.e(TAG, "Failed to get image after 5 attempts")
                 null
             }
         } catch (e: Exception) {

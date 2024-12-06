@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#2D2B2B">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar_language_list"
+        android:layout_width="0dp"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:titleTextColor="@android:color/white"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_language_list"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:padding="16dp"
+        android:clipToPadding="false"
+        android:scrollbars="vertical"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_language_list"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
