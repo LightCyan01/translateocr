@@ -11,16 +11,16 @@
         android:label="Home"
         tools:layout="@layout/fragment_home" />
 
-<!--    <fragment-->
-<!--        android:id="@+id/historyFragment"-->
-<!--        android:name="com.jaymie.fragmentproject.ui.view.History"-->
-<!--        android:label="History"-->
-<!--        tools:layout="@layout/fragment_history" />-->
-<!--    -->
-<!--    <fragment-->
-<!--        android:id="@+id/settingsFragment"-->
-<!--        android:name="com.jaymie.fragmentproject.ui.view.Settings"-->
-<!--        android:label="Settings"-->
-<!--        tools:layout="@layout/fragment_settings" />-->
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="com.jaymie.translateocr.ui.view.History"
+        android:label="History"
+        tools:layout="@layout/fragment_history" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.jaymie.translateocr.ui.view.Settings"
+        android:label="Settings"
+        tools:layout="@layout/fragment_settings" />
 
 </navigation>

@@ -17,8 +17,6 @@ import android.widget.FrameLayout
 import com.google.mlkit.vision.text.Text
 import android.graphics.Paint
 import android.util.TypedValue
-import android.util.DisplayMetrics
-import android.text.TextUtils
 
 class OverlayManager private constructor() {
 
@@ -114,14 +112,7 @@ class OverlayManager private constructor() {
         }
     }
 
-    private fun getScreenDimensions(context: Context): Pair<Int, Int> {
-        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val displayMetrics = DisplayMetrics()
-        windowManager.defaultDisplay.getRealMetrics(displayMetrics)
-        return Pair(displayMetrics.widthPixels, displayMetrics.heightPixels)
-    }
-
-    fun updateOverlayText(textBlocks: List<Text.TextBlock>) {
+    fun updateOverlayText(textBlocks: List<Text.TextBlock>, translatedText: String? = null) {
         try {
             overlayContainer?.let { container ->
                 container.removeAllViews()
@@ -130,65 +121,78 @@ class OverlayManager private constructor() {
                 val maxWidth = displayMetrics.widthPixels
                 val maxHeight = displayMetrics.heightPixels
                 
-                for (block in textBlocks) {
-                    for (line in block.lines) {
+                val statusBarHeight = getStatusBarHeight(container.context)
+                
+                // Split translated text into lines if available
+                val translations = translatedText?.split("\n")?.filter { it.isNotBlank() }
+                var translationIndex = 0
+                
+                // Filter out text blocks in the status bar area
+                val validTextBlocks = textBlocks.flatMap { block ->
+                    block.lines.filter { line ->
+                        line.boundingBox?.let { box ->
+                            box.top > statusBarHeight
+                        } ?: false
+                    }
+                }
+                
+                for (line in validTextBlocks) {
+                    line.boundingBox?.let { box ->
                         val textView = LayoutInflater.from(container.context)
                             .inflate(R.layout.ocr_text_overlay, container, false) as TextView
                         
-                        textView.text = line.text
+                        // Use translated text if available, otherwise use original text
+                        val displayText = if (translations != null && translationIndex < translations.size) {
+                            translations[translationIndex++]
+                        } else {
+                            line.text
+                        }
+                        
+                        textView.text = displayText
                         
                         val params = FrameLayout.LayoutParams(
                             FrameLayout.LayoutParams.WRAP_CONTENT,
                             FrameLayout.LayoutParams.WRAP_CONTENT
                         )
                         
-                        line.boundingBox?.let { box ->
-                            // Calculate text size
-                            val baseTextSize = box.height().toFloat()
-                            val maxTextSize = maxHeight * 0.1f
-                            val minTextSize = displayMetrics.density * 12f
-                            val textSizeInPixels = baseTextSize.coerceIn(minTextSize, maxTextSize)
-                            
-                            textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizeInPixels)
-                            
-                            // Calculate text dimensions with padding consideration
-                            val paint = Paint()
-                            paint.textSize = textSizeInPixels
-                            val textWidth = paint.measureText(line.text)
-                            val horizontalPadding = (textSizeInPixels * 0.3f).toInt() // Padding on each side
-                            
-                            // Calculate total width needed
-                            val totalWidthNeeded = textWidth + (horizontalPadding * 2)
-                            
-                            // Set width to accommodate full text
-                            val desiredWidth = maxOf(box.width(), totalWidthNeeded.toInt())
-                            params.width = minOf(desiredWidth, maxWidth - 20) // Leave small margin
-                            
-                            // Adjust height
-                            val desiredHeight = (textSizeInPixels * 1.3f).toInt()
-                            params.height = minOf(desiredHeight, maxHeight / 4)
-                            
-                            // Position overlay
-                            val desiredLeft = box.left
-                            val desiredTop = box.top - params.height // Position above text
-                            
-                            // Ensure overlay stays within screen bounds
-                            params.leftMargin = desiredLeft.coerceIn(0, maxWidth - params.width)
-                            params.topMargin = desiredTop.coerceIn(0, maxHeight - params.height)
-                            
-                            // Add padding
-                            val verticalPadding = (textSizeInPixels * 0.15f).toInt()
-                            textView.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
-                            
-                            // Only ellipsize if absolutely necessary
-                            if (totalWidthNeeded > maxWidth - 20) {
-                                textView.ellipsize = TextUtils.TruncateAt.END
-                            } else {
-                                textView.ellipsize = null
-                            }
-                        }
+                        // Calculate text size based on original box height
+                        val baseTextSize = box.height().toFloat()
+                        val maxTextSize = maxHeight * 0.1f
+                        val minTextSize = displayMetrics.density * 12f
+                        val textSizeInPixels = baseTextSize.coerceIn(minTextSize, maxTextSize)
                         
-                        textView.elevation = 1000f
+                        textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizeInPixels)
+                        
+                        // Calculate dimensions based on translated text
+                        val paint = Paint()
+                        paint.textSize = textSizeInPixels
+                        val translatedTextWidth = paint.measureText(displayText)  // Use translated text width
+                        val horizontalPadding = (textSizeInPixels * 0.3f).toInt()
+                        
+                        // Calculate total width needed for translated text
+                        val totalWidthNeeded = translatedTextWidth + (horizontalPadding * 2).toFloat()
+                        
+                        // Set width to accommodate translated text
+                        val desiredWidth = maxOf(box.width().toFloat(), totalWidthNeeded)
+                        params.width = minOf(desiredWidth.toInt(), maxWidth - 20)
+                        
+                        // Adjust height
+                        val desiredHeight = (textSizeInPixels * 1.5f).toInt()
+                        params.height = minOf(desiredHeight, maxHeight / 3)
+                        
+                        // Position overlay
+                        val desiredLeft = box.left
+                        val desiredTop = (box.top - statusBarHeight) - (params.height / 2)
+                        
+                        // Ensure overlay stays within screen bounds
+                        params.leftMargin = desiredLeft.coerceIn(0, maxWidth - params.width)
+                        params.topMargin = desiredTop.coerceIn(0, maxHeight - params.height)
+                        
+                        // Add padding
+                        val verticalPadding = (textSizeInPixels * 0.2f).toInt()
+                        textView.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
+                        
+                        textView.elevation = 10f
                         params.gravity = Gravity.NO_GRAVITY
                         
                         container.addView(textView, params)
@@ -198,6 +202,41 @@ class OverlayManager private constructor() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error updating overlay text", e)
+        }
+    }
+
+    private fun getStatusBarHeight(context: Context): Int {
+        val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resourceId > 0) {
+            context.resources.getDimensionPixelSize(resourceId)
+        } else {
+            0
+        }
+    }
+
+    fun getValidTextForTranslation(textBlocks: List<Text.TextBlock>, context: Context): String {
+        val statusBarHeight = getStatusBarHeight(context)
+        
+        // Filter out status bar text and combine remaining text
+        return textBlocks.flatMap { block ->
+            block.lines.filter { line ->
+                line.boundingBox?.let { box ->
+                    box.top > statusBarHeight
+                } ?: false
+            }
+        }.joinToString("\n") { it.text }
+    }
+
+    fun getValidTextBlocks(textBlocks: List<Text.TextBlock>, context: Context): List<Text.Line> {
+        val statusBarHeight = getStatusBarHeight(context)
+        
+        // Filter out status bar text and return valid lines
+        return textBlocks.flatMap { block ->
+            block.lines.filter { line ->
+                line.boundingBox?.let { box ->
+                    box.top > statusBarHeight
+                } ?: false
+            }
         }
     }
 }
