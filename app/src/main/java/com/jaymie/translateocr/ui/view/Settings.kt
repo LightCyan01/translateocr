@@ -67,7 +67,7 @@ class Settings : Fragment() {
         dialog.setContentView(dialogBinding.root)
         
         setupDialogWindow(dialog)
-        setupDialogContent(dialogBinding, item, dialog)
+        setupDialogContent(dialogBinding, item)
         setupValidationObserver(dialogBinding, dialog)
         
         dialog.show()
