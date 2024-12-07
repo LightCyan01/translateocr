@@ -8,7 +8,9 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
+import com.jaymie.translateocr.data.repository.FirestoreRepository
 import com.jaymie.translateocr.utils.PreferencesManager
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -17,6 +19,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val auth = FirebaseAuth.getInstance()
     private val storage = FirebaseStorage.getInstance()
     private val storageRef = storage.reference
+    private val firestoreRepository = FirestoreRepository()
 
     private val _username = MutableLiveData<String>()
     val username: LiveData<String> = _username
@@ -30,10 +33,11 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     init {
         loadUserData()
         loadProfilePicture()
+        observeUserStats()
     }
 
     private fun loadUserData() {
-        // Get current user's email as username
+        // current user's email as usernae
         auth.currentUser?.let { user ->
             _username.value = user.email ?: "User"
         }
@@ -108,8 +112,22 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         auth.signOut()
     }
 
+    private fun observeUserStats() {
+        viewModelScope.launch {
+            try {
+                firestoreRepository.getUserStats()
+                    .catch { }
+                    .collect { stats ->
+                        _translatedWords.value = stats.totalWordsTranslated
+                    }
+            } catch (e: Exception) {
+                // Silently catch errors
+            }
+        }
+    }
+
     sealed class ProfilePictureState {
-        object Loading : ProfilePictureState()
+        data object Loading : ProfilePictureState()
         data class Success(val uri: Uri) : ProfilePictureState()
         data class Error(val message: String) : ProfilePictureState()
     }

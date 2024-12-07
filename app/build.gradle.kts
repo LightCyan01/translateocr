@@ -88,4 +88,10 @@ dependencies {
     // Firebase App Check
     implementation(libs.firebase.appcheck.playintegrity)
     implementation(libs.firebase.appcheck.debug)
+
+    // ML Kit Translation
+    implementation(libs.translate)
+
+    // Firebase Firestore
+    implementation(libs.firebase.firestore)
 }

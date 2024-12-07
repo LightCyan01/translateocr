@@ -12,5 +12,13 @@
     </string>
     <string name="exit">Exit</string>
     <string name="accessibility_service_description">This service improves text detection accuracy for translation purposes.</string>
-
+    <string name="download_model_title">Download Language Model</string>
+    <string name="download_model_message">This will download the translation model for offline use. The model will only be used in Offline Mode.</string>
+    <string name="download">Download</string>
+    <string name="cancel">Cancel</string>
+    <string name="select_source_language">Select Source Language</string>
+    <string name="select_target_language">Select Target Language</string>
+    <string name="no_translations">No translations yet</string>
+    <string name="login_to_view_history">Login to view your translation history</string>
+    <string name="login">Login</string>
 </resources>

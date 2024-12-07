@@ -4,42 +4,33 @@ import android.app.Activity
 import android.app.Dialog
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.provider.Settings
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Observer
 import com.jaymie.translateocr.R
+import com.jaymie.translateocr.data.model.TranslationService
+import com.jaymie.translateocr.databinding.DialogApiKeyBinding
 import com.jaymie.translateocr.databinding.FragmentHomeBinding
+import com.jaymie.translateocr.ui.adapter.TranslationServiceAdapter
 import com.jaymie.translateocr.ui.viewmodel.HomeViewModel
+import com.jaymie.translateocr.ui.viewmodel.HomeViewModel.ValidationResult
+import com.jaymie.translateocr.utils.AccessibilityUtils
+import com.jaymie.translateocr.utils.DialogUtils
+import com.jaymie.translateocr.utils.Event
 import com.jaymie.translateocr.utils.FloatingButtonManager
 import com.jaymie.translateocr.utils.OverlayManager
 import com.jaymie.translateocr.utils.PermissionUtils
-import com.jaymie.translateocr.data.model.TranslationService
-import com.jaymie.translateocr.databinding.DialogApiKeyBinding
-import com.jaymie.translateocr.ui.adapter.TranslationServiceAdapter
-import com.jaymie.translateocr.utils.GoogleLanguages
-import com.jaymie.translateocr.utils.DeepLConstants
-import com.jaymie.translateocr.utils.Event
-import com.jaymie.translateocr.ui.viewmodel.HomeViewModel.ValidationResult
-import android.graphics.drawable.ColorDrawable
-import androidx.lifecycle.Observer
-import android.view.accessibility.AccessibilityManager
-import android.content.Context
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class Home : Fragment() {
-    companion object {
-        fun newInstance() = Home()
-    }
-
     private val viewModel: HomeViewModel by viewModels()
     private lateinit var binding: FragmentHomeBinding
     private lateinit var floatingButtonManager: FloatingButtonManager
@@ -66,16 +57,14 @@ class Home : Fragment() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.let { data ->
-                val languageCode = data.getStringExtra(LanguageSelect.EXTRA_SELECTED_LANGUAGE)
+                val code = data.getStringExtra(LanguageSelect.EXTRA_SELECTED_LANGUAGE) ?: return@let
+                val displayName = data.getStringExtra(LanguageSelect.EXTRA_LANGUAGE_DISPLAY_NAME) ?: code
                 val isFromLanguage = data.getBooleanExtra(LanguageSelect.EXTRA_IS_FROM_LANGUAGE, true)
-                
-                languageCode?.let {
-                    val displayName = getLanguageDisplayName(it)
-                    if (isFromLanguage) {
-                        viewModel.setSourceLanguage(it, displayName)
-                    } else {
-                        viewModel.setTargetLanguage(it, displayName)
-                    }
+
+                if (isFromLanguage) {
+                    viewModel.setSourceLanguage(code, displayName)
+                } else {
+                    viewModel.setTargetLanguage(code, displayName)
                 }
             }
         }
@@ -133,7 +122,7 @@ class Home : Fragment() {
     }
 
     private fun setupServiceDropdown() {
-        val services = TranslationService.values().toList()
+        val services = TranslationService.entries
         val serviceAdapter = TranslationServiceAdapter(requireContext(), services)
         
         binding.serviceDropdown.apply {
@@ -201,36 +190,17 @@ class Home : Fragment() {
     }
 
     private fun showOverlayPermissionDialog() {
-        val dialog = Dialog(requireContext())
-        val dialogView = layoutInflater.inflate(R.layout.permission_dialog, null)
-
-        dialog.setContentView(dialogView)
-
-        val button = dialogView.findViewById<Button>(R.id.permissionButton)
-        button.setOnClickListener {
+        PermissionUtils.showOverlayPermissionDialog(requireContext()) {
             val intent = PermissionUtils.getOverlayPermissionIntent(requireContext())
             overlayPermissionLauncher.launch(intent)
-            dialog.dismiss()
         }
-        dialog.setCancelable(true)
-        dialog.show()
     }
 
     private fun showScreenRecordingPermissionDialog() {
-        val dialog = Dialog(requireContext())
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.screen_recording_permission_dialog, null)
-        dialog.setContentView(dialogView)
-
-        val acceptButton = dialogView.findViewById<Button>(R.id.permissionButton)
-        acceptButton.setOnClickListener {
+        PermissionUtils.showScreenRecordingPermissionDialog(requireContext()) {
             val intent = PermissionUtils.getScreenRecordingPermissionIntent(requireContext())
             screenRecordingPermissionLauncher.launch(intent)
-            dialog.dismiss()
         }
-
-        dialog.setCancelable(true)
-        dialog.show()
     }
 
     private fun startLanguageSelect(isFromLanguage: Boolean) {
@@ -242,25 +212,6 @@ class Home : Fragment() {
             )
         }
         languageSelectLauncher.launch(intent)
-    }
-
-    private fun getLanguageDisplayName(code: String): String {
-        val selectedService = viewModel.selectedService.value ?: TranslationService.GOOGLE_TRANSLATE
-
-        return when (selectedService) {
-            TranslationService.DEEPL, TranslationService.DEEPL_API -> {
-                DeepLConstants.SUPPORTED_SOURCE_LANGUAGES.find { it.code == code }?.name
-                    ?: DeepLConstants.SUPPORTED_TARGET_LANGUAGES.find { it.code == code }?.name
-                    ?: code
-            }
-            TranslationService.GOOGLE_TRANSLATE, TranslationService.GOOGLE_TRANSLATE_API -> {
-                GoogleLanguages.SUPPORTED_LANGUAGES.find { it.code == code }?.name ?: code
-            }
-            TranslationService.OFFLINE -> {
-                // For offline, fallback to Google Translate if necessary
-                GoogleLanguages.SUPPORTED_LANGUAGES.find { it.code == code }?.name ?: code
-            }
-        }
     }
 
     private fun showApiKeyDialog(service: TranslationService) {
@@ -334,40 +285,17 @@ class Home : Fragment() {
     }
 
     private fun showAccessibilityConsentDialog() {
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_accessibility_consent, null)
-
-        val dialog = MaterialAlertDialogBuilder(requireContext(), R.style.ThemeOverlay_App_MaterialAlertDialog)
-            .setView(dialogView)
-            .setCancelable(true)
-            .create()
-
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-
-        dialogView.findViewById<MaterialButton>(R.id.btn_accept).setOnClickListener {
-            dialog.dismiss()
+        DialogUtils.showAccessibilityConsentDialog(requireContext()) {
             openAccessibilitySettings()
         }
-
-        dialogView.findViewById<MaterialButton>(R.id.btn_cancel).setOnClickListener {
-            dialog.dismiss()
-        }
-
-        dialog.show()
     }
 
     private fun openAccessibilitySettings() {
-        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-        startActivity(intent)
+        startActivity(AccessibilityUtils.openAccessibilitySettings())
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
-        val accessibilityManager = requireContext().getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-        val enabledServices = Settings.Secure.getString(
-            requireContext().contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        )
-        return enabledServices?.contains(requireContext().packageName) == true
+        return AccessibilityUtils.isAccessibilityServiceEnabled(requireContext(), requireContext().packageName)
     }
 
     private fun checkAccessibilityService() {

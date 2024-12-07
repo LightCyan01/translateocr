@@ -7,7 +7,7 @@
     android:background="#2D2B2B">
 
     <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar_language_list"
+        android:id="@+id/toolbar"
         android:layout_width="0dp"
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
@@ -18,15 +18,14 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler_language_list"
+        android:id="@+id/language_list"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:padding="16dp"
         android:clipToPadding="false"
-        android:scrollbars="vertical"
-        app:layout_constraintTop_toBottomOf="@id/toolbar_language_list"
-        app:layout_constraintStart_toStartOf="parent"
+        android:paddingVertical="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

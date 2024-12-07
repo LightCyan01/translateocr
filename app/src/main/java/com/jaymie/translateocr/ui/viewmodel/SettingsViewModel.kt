@@ -97,10 +97,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      */
     sealed class ValidationResult {
         /** Loading state while validating API key */
-        object Loading : ValidationResult()
+        data object Loading : ValidationResult()
 
         /** Success state when API key is valid and saved */
-        object Success : ValidationResult()
+        data object Success : ValidationResult()
 
         /** Error state with error message */
         data class Error(val message: String) : ValidationResult()

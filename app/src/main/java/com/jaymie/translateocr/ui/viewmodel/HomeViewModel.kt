@@ -3,29 +3,38 @@ package com.jaymie.translateocr.ui.viewmodel
 import android.app.Application
 import android.content.Intent
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.google.mlkit.vision.text.Text
+import com.jaymie.translateocr.data.model.Translation
+import com.jaymie.translateocr.data.model.TranslationService
+import com.jaymie.translateocr.data.repository.FirestoreRepository
 import com.jaymie.translateocr.data.repository.OCRRepository
-import com.jaymie.translateocr.utils.PermissionUtils
-import com.jaymie.translateocr.utils.ScreenCaptureManager
-import com.jaymie.translateocr.utils.OverlayManager
+import com.jaymie.translateocr.data.repository.TranslationHistoryRepository
+import com.jaymie.translateocr.data.repository.TranslationRepository
 import com.jaymie.translateocr.data.service.ScreenCaptureService
+import com.jaymie.translateocr.service.TranslateAccessibilityService
+import com.jaymie.translateocr.utils.DeepLConstants
+import com.jaymie.translateocr.utils.Event
+import com.jaymie.translateocr.utils.FloatingButtonManager
+import com.jaymie.translateocr.utils.GoogleLanguages
+import com.jaymie.translateocr.utils.OverlayManager
+import com.jaymie.translateocr.utils.PermissionUtils
+import com.jaymie.translateocr.utils.PreferencesManager
+import com.jaymie.translateocr.utils.ScreenCaptureManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.google.mlkit.vision.text.Text
-import com.jaymie.translateocr.data.model.TranslationService
-import com.jaymie.translateocr.data.repository.TranslationRepository
-import com.jaymie.translateocr.utils.Event
-import com.jaymie.translateocr.utils.PreferencesManager
-import com.jaymie.translateocr.data.model.Translation
-import com.jaymie.translateocr.data.repository.TranslationHistoryRepository
-import com.jaymie.translateocr.utils.FloatingButtonManager
-import com.jaymie.translateocr.service.TranslateAccessibilityService
 
 /**
- * ViewModel for handling translation operations and UI state in the Home screen
+ * ViewModel for handling translation operations and UI state in the Home screen.
+ * Uses:
+ * - ViewBinding for UI interactions
+ * - Coroutines for async operations
+ * - LiveData for state management
+ * - ML Kit for OCR and translation
  */
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val screenCaptureManager = ScreenCaptureManager(application)
@@ -34,8 +43,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val preferencesManager = PreferencesManager(application)
     private val translationHistoryRepository = TranslationHistoryRepository()
     private val floatingButtonManager = FloatingButtonManager(application)
+    private val firestoreRepository = FirestoreRepository()
 
-    // UI State
+    // UI State LiveData
     private val _showFloatingButton = MutableLiveData<Boolean>()
     val showFloatingButton: LiveData<Boolean> = _showFloatingButton
 
@@ -73,11 +83,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _isHighPrecisionEnabled = MutableLiveData<Boolean>()
     val isHighPrecisionEnabled: LiveData<Boolean> = _isHighPrecisionEnabled
 
+    private var isProcessingTranslation = false
+
     init {
         setDefaultLanguages()
         observeAccessibilityService()
     }
 
+    /**
+     * Starts screen capture service and projection.
+     * Uses coroutines for async operations.
+     */
     fun startScreenCapture(resultCode: Int, data: Intent) {
         viewModelScope.launch {
             try {
@@ -146,16 +162,44 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (!isScreenCaptureActive) return
 
         try {
-            val translations: List<String> = when (selectedService.value) {
-                TranslationService.GOOGLE_TRANSLATE -> translateWithGoogle(textBlocks)
-                TranslationService.GOOGLE_TRANSLATE_API -> translateWithGoogle(textBlocks)
-                TranslationService.DEEPL -> translateWithDeepL(textBlocks)
-                TranslationService.DEEPL_API -> translateWithDeepL(textBlocks)
-                else -> listOf()
+            val service = selectedService.value ?: TranslationService.GOOGLE_TRANSLATE
+            val translations = when (service) {
+                TranslationService.OFFLINE -> {
+                    if (!isModelDownloaded()) {
+                        throw Exception("Language model not downloaded. Please download it first.")
+                    }
+                    val validBlocks = OverlayManager.getInstance().getValidTextBlocks(textBlocks, getApplication())
+                    validBlocks.map { line ->
+                        translationRepository.translateOffline(
+                            text = line.text,
+                            sourceLanguage = sourceLanguage.value ?: "en",
+                            targetLanguage = targetLanguage.value ?: "ja"
+                        )
+                    }
+                }
+                else -> when (service) {
+                    TranslationService.GOOGLE_TRANSLATE -> translateWithGoogle(textBlocks)
+                    TranslationService.GOOGLE_TRANSLATE_API -> translateWithGoogle(textBlocks)
+                    TranslationService.DEEPL -> translateWithDeepL(textBlocks)
+                    TranslationService.DEEPL_API -> translateWithDeepL(textBlocks)
+                    else -> listOf()
+                }
             }
 
             // Update overlay with translations
-            OverlayManager.getInstance().updateOverlayText(textBlocks, translations.joinToString("\n"))
+            if (isHighPrecisionEnabled.value == true) {
+                // Handle high precision mode
+                val accessibilityBlocks = textBlocks.map { block ->
+                    TranslateAccessibilityService.TextBlock(
+                        text = block.text,
+                        bounds = block.boundingBox ?: android.graphics.Rect(),
+                        isEditable = false
+                    )
+                }
+                OverlayManager.getInstance().updateOverlayWithHighPrecision(accessibilityBlocks, translations)
+            } else {
+                OverlayManager.getInstance().updateOverlayText(textBlocks, translations.joinToString("\n"))
+            }
 
             // Save translation to history
             val translation = Translation(
@@ -172,6 +216,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 block.text.split("\\s+".toRegex()).size 
             }
             preferencesManager.incrementTranslatedWords(wordCount)
+            firestoreRepository.updateUserStats(wordCount)
 
         } catch (e: Exception) {
             handleTranslationError(e, textBlocks)
@@ -308,12 +353,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun setDefaultLanguagesForService(service: TranslationService) {
         val isDeepL = service == TranslationService.DEEPL || service == TranslationService.DEEPL_API
         
-        // DeepL uses uppercase, others use lowercase
-        val sourceCode = if (isDeepL) "EN" else "en"
-        val targetCode = if (isDeepL) "JA" else "ja"
-        
-        setSourceLanguage(sourceCode, "English")
-        setTargetLanguage(targetCode, "Japanese")
+        // Use the language's name property instead of code for display
+        val sourceLanguage = if (isDeepL) {
+            DeepLConstants.SUPPORTED_SOURCE_LANGUAGES.find { it.code == "EN" }
+        } else {
+            GoogleLanguages.SUPPORTED_LANGUAGES.find { it.code == "en" }
+        }
+
+        val targetLanguage = if (isDeepL) {
+            DeepLConstants.SUPPORTED_TARGET_LANGUAGES.find { it.code == "JA" }
+        } else {
+            GoogleLanguages.SUPPORTED_LANGUAGES.find { it.code == "ja" }
+        }
+
+        sourceLanguage?.let { setSourceLanguage(it.code, it.name) }
+        targetLanguage?.let { setTargetLanguage(it.code, it.name) }
     }
 
     private fun handleTranslationError(e: Exception, textBlocks: List<Text.TextBlock>) {
@@ -325,16 +379,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
+        isProcessingTranslation = false
         if (isScreenCaptureActive) {
             clearTranslationState()
             floatingButtonManager.cleanup()
         }
-        TranslateAccessibilityService.screenText.removeObserver { }
+        // Remove the observer properly
+        accessibilityObserver?.let {
+            TranslateAccessibilityService.screenText.removeObserver(it)
+        }
+        accessibilityObserver = null
     }
 
     sealed class ValidationResult {
-        object Loading : ValidationResult()
-        object Success : ValidationResult()
+        data object Loading : ValidationResult()
+        data object Success : ValidationResult()
         data class Error(val message: String) : ValidationResult()
     }
 
@@ -362,6 +421,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 if (isScreenCaptureActive) {
+                    isProcessingTranslation = false
                     screenCaptureManager.stopProjection()
                     isScreenCaptureActive = false
                     _showFloatingButton.value = false
@@ -397,51 +457,137 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun processHighPrecisionText(textBlocks: List<TranslateAccessibilityService.TextBlock>) {
+        if (!isScreenCaptureActive || isProcessingTranslation) return
+        
+        viewModelScope.launch {
+            isProcessingTranslation = true
+            try {
+                val translations = translateTextBlocks(textBlocks)
+                updateOverlayAndSaveHistory(textBlocks, translations)
+            } catch (e: Exception) {
+                if (isScreenCaptureActive) {
+                    _toastMessage.postValue("Translation failed: ${e.message}")
+                }
+            } finally {
+                isProcessingTranslation = false
+            }
+        }
+    }
+
+    private suspend fun translateTextBlocks(
+        textBlocks: List<TranslateAccessibilityService.TextBlock>
+    ): List<String> {
+        return textBlocks.map { block ->
+            when (selectedService.value) {
+                TranslationService.OFFLINE -> translateOfflineBlock(block)
+                TranslationService.GOOGLE_TRANSLATE,
+                TranslationService.GOOGLE_TRANSLATE_API -> translateWithGoogleBlock(block)
+                TranslationService.DEEPL,
+                TranslationService.DEEPL_API -> translateWithDeepLBlock(block)
+                else -> block.text
+            }
+        }
+    }
+
+    private suspend fun translateOfflineBlock(block: TranslateAccessibilityService.TextBlock): String {
+        if (!isModelDownloaded()) {
+            throw Exception("Language model not downloaded. Please download it first.")
+        }
+        return translationRepository.translateOffline(
+            text = block.text,
+            sourceLanguage = sourceLanguage.value ?: "en",
+            targetLanguage = targetLanguage.value ?: "ja"
+        )
+    }
+
+    private suspend fun translateWithGoogleBlock(block: TranslateAccessibilityService.TextBlock): String {
+        return translationRepository.translateWithGoogle(
+            text = block.text,
+            sourceLanguage = sourceLanguage.value ?: "en",
+            targetLanguage = targetLanguage.value ?: "ja",
+            apiKey = if (selectedService.value == TranslationService.GOOGLE_TRANSLATE_API) 
+                preferencesManager.getGoogleApiKey() else null,
+            isApiKeyService = selectedService.value == TranslationService.GOOGLE_TRANSLATE_API
+        )
+    }
+
+    private suspend fun translateWithDeepLBlock(block: TranslateAccessibilityService.TextBlock): String {
+        return translationRepository.translateWithDeepL(
+            text = block.text,
+            sourceLanguage = sourceLanguage.value ?: "EN",
+            targetLanguage = targetLanguage.value ?: "JA",
+            apiKey = if (selectedService.value == TranslationService.DEEPL_API) 
+                preferencesManager.getDeepLApiKey() else null,
+            isApiKeyService = selectedService.value == TranslationService.DEEPL_API
+        )
+    }
+
+    private suspend fun updateOverlayAndSaveHistory(
+        textBlocks: List<TranslateAccessibilityService.TextBlock>,
+        translations: List<String>
+    ) {
+        // Update overlay
+        OverlayManager.getInstance().updateOverlayWithHighPrecision(textBlocks, translations)
+
+        // Save translation history
+        saveTranslationHistory(textBlocks, translations)
+
+        // Update word count
+        updateWordCount(textBlocks)
+    }
+
+    private suspend fun saveTranslationHistory(
+        textBlocks: List<TranslateAccessibilityService.TextBlock>,
+        translations: List<String>
+    ) {
+        val translation = Translation(
+            id = System.currentTimeMillis().toString(),
+            originalText = textBlocks.joinToString("\n") { it.text },
+            translatedText = translations.joinToString("\n"),
+            fromLanguage = sourceLanguage.value ?: "en",
+            toLanguage = targetLanguage.value ?: "ja"
+        )
+        translationHistoryRepository.saveTranslation(translation)
+    }
+
+    private suspend fun updateWordCount(textBlocks: List<TranslateAccessibilityService.TextBlock>) {
+        try {
+            val wordCount = textBlocks.sumOf { block -> 
+                block.text.split("\\s+".toRegex()).size 
+            }
+            preferencesManager.incrementTranslatedWords(wordCount)
+            
+            // Only update Firestore if word count is positive
+            if (wordCount > 0) {
+                firestoreRepository.updateUserStats(wordCount)
+            }
+        } catch (e: Exception) {
+            Log.e("HomeViewModel", "Error updating word count", e)
+            // Don't throw the exception to prevent translation failure
+        }
+    }
+
+    private suspend fun isModelDownloaded(): Boolean {
+        return translationRepository.isModelDownloaded(
+            sourceLanguage = sourceLanguage.value ?: "en",
+            targetLanguage = targetLanguage.value ?: "ja"
+        )
+    }
+
+    // Store the observer reference for proper cleanup
+    private var accessibilityObserver: ((List<TranslateAccessibilityService.TextBlock>) -> Unit)? = null
+
     private fun observeAccessibilityService() {
-        TranslateAccessibilityService.screenText.observeForever { textBlocks ->
+        accessibilityObserver = { textBlocks ->
             if (isHighPrecisionEnabled.value == true) {
                 processHighPrecisionText(textBlocks)
             }
         }
-    }
-
-    private fun processHighPrecisionText(textBlocks: List<TranslateAccessibilityService.TextBlock>) {
-        viewModelScope.launch {
-            try {
-                val translations = textBlocks.map { block ->
-                    when (selectedService.value) {
-                        TranslationService.GOOGLE_TRANSLATE,
-                        TranslationService.GOOGLE_TRANSLATE_API -> translationRepository.translateWithGoogle(
-                            text = block.text,
-                            sourceLanguage = sourceLanguage.value ?: "en",
-                            targetLanguage = targetLanguage.value ?: "ja",
-                            apiKey = if (selectedService.value == TranslationService.GOOGLE_TRANSLATE_API) 
-                                preferencesManager.getGoogleApiKey() else null,
-                            isApiKeyService = selectedService.value == TranslationService.GOOGLE_TRANSLATE_API
-                        )
-                        TranslationService.DEEPL,
-                        TranslationService.DEEPL_API -> translationRepository.translateWithDeepL(
-                            text = block.text,
-                            sourceLanguage = sourceLanguage.value ?: "EN",
-                            targetLanguage = targetLanguage.value ?: "JA",
-                            apiKey = if (selectedService.value == TranslationService.DEEPL_API) 
-                                preferencesManager.getDeepLApiKey() else null,
-                            isApiKeyService = selectedService.value == TranslationService.DEEPL_API
-                        )
-                        else -> block.text
-                    }
-                }
-
-                // Update overlay with the translated text
-                OverlayManager.getInstance().updateOverlayWithHighPrecision(textBlocks, translations)
-
-            } catch (e: Exception) {
-                _toastMessage.postValue("Translation failed: ${e.message}")
-            }
+        accessibilityObserver?.let {
+            TranslateAccessibilityService.screenText.observeForever(it)
         }
     }
 
-    fun setHighPrecisionMode(enabled: Boolean) {
-        _isHighPrecisionEnabled.value = enabled
-    }
 }
+

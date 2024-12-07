@@ -7,31 +7,41 @@
     android:padding="16dp"
     android:background="?attr/selectableItemBackground">
 
-    <!-- Language name -->
     <TextView
-        android:id="@+id/text_language_name"
+        android:id="@+id/language_name"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Language Name"
         android:textSize="16sp"
         android:textColor="@android:color/white"
         android:ellipsize="end"
         android:maxLines="1"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/icon_download"
+        app:layout_constraintEnd_toStartOf="@+id/download_container"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
 
-    <!-- Download icon -->
-    <ImageView
-        android:id="@+id/icon_download"
+    <FrameLayout
+        android:id="@+id/download_container"
         android:layout_width="24dp"
         android:layout_height="24dp"
-        android:src="@drawable/ic_download"
-        android:contentDescription="Download offline model"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:tint="@color/primary" />
+        app:layout_constraintBottom_toBottomOf="parent">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <ImageView
+            android:id="@+id/download_icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_download"
+            android:contentDescription="Download language model"
+            app:tint="@color/primary" />
+
+        <ProgressBar
+            android:id="@+id/download_progress"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout> 

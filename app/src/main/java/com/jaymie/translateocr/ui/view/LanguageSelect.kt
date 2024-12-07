@@ -1,67 +1,136 @@
 package com.jaymie.translateocr.ui.view
 
+import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.jaymie.translateocr.R
+import com.jaymie.translateocr.data.model.Language
 import com.jaymie.translateocr.databinding.ActivityLanguageSelectBinding
+import com.jaymie.translateocr.service.ModelDownloadService
 import com.jaymie.translateocr.ui.adapter.LanguageAdapter
-import com.jaymie.translateocr.utils.DeepLConstants
-import com.jaymie.translateocr.utils.GoogleLanguages
+import com.jaymie.translateocr.ui.viewmodel.DownloadEvent
+import com.jaymie.translateocr.ui.viewmodel.LanguageSelectUiState
+import com.jaymie.translateocr.ui.viewmodel.LanguageSelectViewModel
 
+/**
+ * Activity for selecting source and target languages.
+ * Uses ViewBinding and observes ViewModel for state updates.
+ */
 class LanguageSelect : AppCompatActivity() {
     private lateinit var binding: ActivityLanguageSelectBinding
+    private val viewModel: LanguageSelectViewModel by viewModels()
+    private lateinit var adapter: LanguageAdapter
 
-    companion object {
-        const val EXTRA_SELECTED_LANGUAGE = "selected_language"
-        const val EXTRA_IS_FROM_LANGUAGE = "is_from_language"
-        const val EXTRA_TRANSLATION_SERVICE = "translation_service"
+    private val downloadReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ModelDownloadService.ACTION_DOWNLOAD_COMPLETE) {
+                intent.getStringExtra(ModelDownloadService.EXTRA_LANGUAGE_CODE)?.let { code ->
+                    viewModel.updateDownloadState(code, true)
+                    Toast.makeText(this@LanguageSelect, "Model downloaded successfully", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
+    @SuppressLint("InlinedApi")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        registerReceiver(downloadReceiver, IntentFilter(ModelDownloadService.ACTION_DOWNLOAD_COMPLETE),
+            RECEIVER_NOT_EXPORTED
+        )
         binding = ActivityLanguageSelectBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val isFromLanguage = intent.getBooleanExtra(EXTRA_IS_FROM_LANGUAGE, true)
-        val isDeepL = intent.getBooleanExtra(EXTRA_TRANSLATION_SERVICE, false)
-
-        setupToolbar(isFromLanguage)
-        setupRecyclerView(isFromLanguage, isDeepL)
+        setupToolbar()
+        setupRecyclerView()
+        observeViewModel()
     }
 
-    private fun setupToolbar(isFromLanguage: Boolean) {
-        binding.toolbarLanguageList.apply {
-            title = if (isFromLanguage) "Translate From" else "Translate To"
-            setNavigationOnClickListener { finish() }
-        }
+    private fun setupToolbar() {
+        binding.toolbar.setNavigationOnClickListener { finish() }
     }
 
-    private fun setupRecyclerView(isFromLanguage: Boolean, isDeepL: Boolean) {
-        val languages = if (isDeepL) {
-            if (isFromLanguage) DeepLConstants.SUPPORTED_SOURCE_LANGUAGES
-            else DeepLConstants.SUPPORTED_TARGET_LANGUAGES
-        } else {
-            GoogleLanguages.SUPPORTED_LANGUAGES
-        }
-
-        val adapter = LanguageAdapter(
-            languages = languages,
-            showDownloadButton = !isDeepL,
-            onLanguageSelected = { selectedLanguage ->
-                val resultIntent = Intent().apply {
-                    putExtra(EXTRA_SELECTED_LANGUAGE, selectedLanguage.code)
-                    putExtra(EXTRA_IS_FROM_LANGUAGE, isFromLanguage)
-                }
-                setResult(Activity.RESULT_OK, resultIntent)
-                finish()
-            }
+    private fun setupRecyclerView() {
+        val isGoogleTranslate = !intent.getBooleanExtra(EXTRA_TRANSLATION_SERVICE, false)
+        adapter = LanguageAdapter(
+            isGoogleTranslate = isGoogleTranslate,
+            onLanguageClick = { language -> viewModel.onLanguageClick(language) },
+            onDownloadClick = { language -> showDownloadDialog(language) }
         )
+        binding.languageList.adapter = adapter
+        binding.languageList.layoutManager = LinearLayoutManager(this)
+    }
 
-        binding.recyclerLanguageList.apply {
-            layoutManager = LinearLayoutManager(this@LanguageSelect)
-            this.adapter = adapter
+    private fun observeViewModel() {
+        viewModel.uiState.observe(this) { state ->
+            updateUI(state)
         }
+
+        viewModel.downloadEvent.observe(this) { event ->
+            event.getContentIfNotHandled()?.let { downloadEvent ->
+                when (downloadEvent) {
+                    is DownloadEvent.StartDownload -> startDownload(downloadEvent.languageCode)
+                    is DownloadEvent.ReturnLanguage -> returnLanguage(downloadEvent.languageCode)
+                }
+            }
+        }
+    }
+
+    private fun updateUI(state: LanguageSelectUiState) {
+        binding.toolbar.title = if (state.isFromLanguage) {
+            getString(R.string.select_source_language)
+        } else {
+            getString(R.string.select_target_language)
+        }
+        adapter.submitList(state.languages)
+    }
+
+    private fun showDownloadDialog(language: Language) {
+        MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_App_MaterialAlertDialog)
+            .setTitle(R.string.download_model_title)
+            .setMessage(R.string.download_model_message)
+            .setPositiveButton(R.string.download) { _, _ ->
+                viewModel.onDownloadClick(language)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun startDownload(languageCode: String) {
+        startService(Intent(this, ModelDownloadService::class.java).apply {
+            putExtra(ModelDownloadService.EXTRA_LANGUAGE_CODE, languageCode)
+        })
+    }
+
+    private fun returnLanguage(languageCode: String) {
+        val language = viewModel.uiState.value?.languages?.find { it.code == languageCode }
+        
+        setResult(Activity.RESULT_OK, Intent().apply {
+            putExtra(EXTRA_SELECTED_LANGUAGE, languageCode)
+            putExtra(EXTRA_LANGUAGE_DISPLAY_NAME, language?.name ?: languageCode)
+            putExtra(EXTRA_IS_FROM_LANGUAGE, intent.getBooleanExtra(EXTRA_IS_FROM_LANGUAGE, true))
+        })
+        finish()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(downloadReceiver)
+    }
+
+    companion object {
+        const val EXTRA_SELECTED_LANGUAGE = "selected_language"
+        const val EXTRA_LANGUAGE_DISPLAY_NAME = "language_display_name"
+        const val EXTRA_IS_FROM_LANGUAGE = "is_from_language"
+        const val EXTRA_TRANSLATION_SERVICE = "translation_service"
     }
 }
