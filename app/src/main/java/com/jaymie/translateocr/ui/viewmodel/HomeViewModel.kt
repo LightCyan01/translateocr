@@ -591,11 +591,3 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
 }
 
-data class HomeUiState(
-    val sourceLanguageText: String = "English",
-    val targetLanguageText: String = "Japanese",
-    val selectedServiceText: String = TranslationService.GOOGLE_TRANSLATE.displayName,
-    val isHighPrecisionEnabled: Boolean = false,
-    val showFloatingButton: Boolean = false,
-    val isLoading: Boolean = false
-)
