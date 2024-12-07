@@ -7,7 +7,7 @@ class PreferencesManager(context: Context) {
 
     // Add configuration change handling
     private var lastConfigChange = 0L
-    private val CONFIG_CHANGE_THRESHOLD = 500L 
+    private val configChangeThreshold = 500L
 
     companion object {
         private const val PREFS_NAME = "translate_ocr_prefs"
@@ -30,7 +30,7 @@ class PreferencesManager(context: Context) {
 
     private fun isConfigurationChange(): Boolean {
         val currentTime = System.currentTimeMillis()
-        val isConfigChange = (currentTime - lastConfigChange) < CONFIG_CHANGE_THRESHOLD
+        val isConfigChange = (currentTime - lastConfigChange) < configChangeThreshold
         lastConfigChange = currentTime
         return isConfigChange
     }
