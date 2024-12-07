@@ -1,139 +1,169 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<androidx.core.widget.NestedScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.view.Home">
+    android:background="#2D2B2B"
+    android:fillViewport="true">
 
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
-    <!-- Container with colored border -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/container_card"
-        android:layout_width="0dp"
-        android:layout_height="250dp"
-        app:cardCornerRadius="20dp"
-        app:cardBackgroundColor="#2D2B2B"
-        app:strokeWidth="2dp"
-        app:strokeColor="@color/primary"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_margin="16dp" >
+        <!-- Container with colored border -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/container_card"
+            android:layout_width="0dp"
+            android:layout_height="270dp"
+            app:cardCornerRadius="20dp"
+            app:cardBackgroundColor="#2D2B2B"
+            app:strokeWidth="2dp"
+            app:strokeColor="@color/primary"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_margin="16dp" >
 
-        <!-- Content inside the container -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="16dp" >
+            <!-- Content inside the container -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="16dp" >
 
-            <!-- Language Buttons -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_language_from"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:text="English"
-                app:cornerRadius="10dp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/swap_languages"
-                android:layout_marginEnd="8dp"
-                android:backgroundTint="#6A6464" />
+                <!-- Language Buttons -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_language_from"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="English"
+                    app:cornerRadius="10dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintEnd_toStartOf="@+id/swap_languages"
+                    android:layout_marginEnd="8dp"
+                    android:backgroundTint="#6A6464" />
 
-            <!-- Swap Icon -->
-            <ImageView
-                android:id="@+id/swap_languages"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_swap"
-                android:contentDescription="Swap languages"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackground"
-                app:tint="@color/primary"
-                app:layout_constraintTop_toTopOf="@+id/btn_language_from"
-                app:layout_constraintBottom_toBottomOf="@+id/btn_language_from"
-                app:layout_constraintStart_toEndOf="@+id/btn_language_from"
-                app:layout_constraintEnd_toStartOf="@+id/btn_language_to"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp" />
+                <!-- Swap Icon -->
+                <ImageView
+                    android:id="@+id/swap_languages"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/ic_swap"
+                    android:contentDescription="Swap languages"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    app:tint="@color/primary"
+                    app:layout_constraintTop_toTopOf="@+id/btn_language_from"
+                    app:layout_constraintBottom_toBottomOf="@+id/btn_language_from"
+                    app:layout_constraintStart_toEndOf="@+id/btn_language_from"
+                    app:layout_constraintEnd_toStartOf="@+id/btn_language_to"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_language_to"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:text="Japanese"
-                app:cornerRadius="10dp"
-                app:layout_constraintStart_toEndOf="@+id/swap_languages"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                android:layout_marginStart="8dp"
-                android:backgroundTint="#6A6464" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_language_to"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Japanese"
+                    app:cornerRadius="10dp"
+                    app:layout_constraintStart_toEndOf="@+id/swap_languages"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:layout_marginStart="8dp"
+                    android:backgroundTint="#6A6464" />
 
-            <!-- Service Dropdown -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/service_dropdown_layout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                app:boxBackgroundColor="#6A6464"
-                app:boxCornerRadiusBottomEnd="10dp"
-                app:boxCornerRadiusBottomStart="10dp"
-                app:boxCornerRadiusTopEnd="10dp"
-                app:boxCornerRadiusTopStart="10dp"
-                app:boxStrokeWidth="0dp"
-                app:boxStrokeWidthFocused="0dp"
-                android:layout_marginTop="16dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/btn_language_from">
+                <!-- Service Dropdown -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/service_dropdown_layout"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    app:boxBackgroundColor="#6A6464"
+                    app:boxCornerRadiusBottomEnd="10dp"
+                    app:boxCornerRadiusBottomStart="10dp"
+                    app:boxCornerRadiusTopEnd="10dp"
+                    app:boxCornerRadiusTopStart="10dp"
+                    app:boxStrokeWidth="0dp"
+                    app:boxStrokeWidthFocused="0dp"
+                    android:layout_marginTop="16dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/btn_language_from">
 
-                <AutoCompleteTextView
-                    android:id="@+id/service_dropdown"
+                    <AutoCompleteTextView
+                        android:id="@+id/service_dropdown"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none"
+                        android:textColor="@android:color/white"
+                        android:background="@null"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Start and Stop Buttons -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/start"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Start"
+                    android:backgroundTint="#57B26B"
+                    app:cornerRadius="10dp"
+                    app:layout_constraintTop_toBottomOf="@+id/service_dropdown_layout"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toStartOf="@+id/stop"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="16dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/stop"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Stop"
+                    android:backgroundTint="#BE1717"
+                    app:cornerRadius="10dp"
+                    app:layout_constraintTop_toBottomOf="@+id/service_dropdown_layout"
+                    app:layout_constraintStart_toEndOf="@+id/start"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="16dp" />
+
+                <!-- Add this inside the ConstraintLayout after the start/stop buttons -->
+                <LinearLayout
+                    android:id="@+id/high_precision_container"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="none"
-                    android:textColor="@android:color/white"
-                    android:background="@null"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="16dp"
+                    android:paddingHorizontal="8dp"
+                    app:layout_constraintTop_toBottomOf="@id/start">
 
-            </com.google.android.material.textfield.TextInputLayout>
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="High Precision Mode"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp" />
 
-            <!-- Start and Stop Buttons -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/start"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:text="Start"
-                android:backgroundTint="#57B26B"
-                app:cornerRadius="10dp"
-                app:layout_constraintTop_toBottomOf="@+id/service_dropdown_layout"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/stop"
-                android:layout_marginEnd="8dp"
-                android:layout_marginTop="16dp" />
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/high_precision_switch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/stop"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:text="Stop"
-                android:backgroundTint="#BE1717"
-                app:cornerRadius="10dp"
-                app:layout_constraintTop_toBottomOf="@+id/service_dropdown_layout"
-                app:layout_constraintStart_toEndOf="@+id/start"
-                app:layout_constraintEnd_toEndOf="parent"
-                android:layout_marginStart="8dp"
-                android:layout_marginTop="16dp" />
+                </LinearLayout>
 
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-    </com.google.android.material.card.MaterialCardView>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.core.widget.NestedScrollView>
