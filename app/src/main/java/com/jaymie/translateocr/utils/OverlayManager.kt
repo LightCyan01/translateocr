@@ -17,6 +17,7 @@ import android.widget.FrameLayout
 import com.google.mlkit.vision.text.Text
 import android.graphics.Paint
 import android.util.TypedValue
+import android.view.WindowInsets
 import com.jaymie.translateocr.service.TranslateAccessibilityService
 
 class OverlayManager private constructor() {
