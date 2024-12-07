@@ -34,6 +34,8 @@ import android.view.accessibility.AccessibilityManager
 import android.content.Context
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.jaymie.translateocr.utils.AccessibilityUtils
+import com.jaymie.translateocr.utils.DialogUtils
 
 class Home : Fragment() {
     companion object {
@@ -133,7 +135,7 @@ class Home : Fragment() {
     }
 
     private fun setupServiceDropdown() {
-        val services = TranslationService.values().toList()
+        val services = TranslationService.entries
         val serviceAdapter = TranslationServiceAdapter(requireContext(), services)
         
         binding.serviceDropdown.apply {
@@ -201,36 +203,17 @@ class Home : Fragment() {
     }
 
     private fun showOverlayPermissionDialog() {
-        val dialog = Dialog(requireContext())
-        val dialogView = layoutInflater.inflate(R.layout.permission_dialog, null)
-
-        dialog.setContentView(dialogView)
-
-        val button = dialogView.findViewById<Button>(R.id.permissionButton)
-        button.setOnClickListener {
+        PermissionUtils.showOverlayPermissionDialog(requireContext()) {
             val intent = PermissionUtils.getOverlayPermissionIntent(requireContext())
             overlayPermissionLauncher.launch(intent)
-            dialog.dismiss()
         }
-        dialog.setCancelable(true)
-        dialog.show()
     }
 
     private fun showScreenRecordingPermissionDialog() {
-        val dialog = Dialog(requireContext())
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.screen_recording_permission_dialog, null)
-        dialog.setContentView(dialogView)
-
-        val acceptButton = dialogView.findViewById<Button>(R.id.permissionButton)
-        acceptButton.setOnClickListener {
+        PermissionUtils.showScreenRecordingPermissionDialog(requireContext()) {
             val intent = PermissionUtils.getScreenRecordingPermissionIntent(requireContext())
             screenRecordingPermissionLauncher.launch(intent)
-            dialog.dismiss()
         }
-
-        dialog.setCancelable(true)
-        dialog.show()
     }
 
     private fun startLanguageSelect(isFromLanguage: Boolean) {
@@ -334,40 +317,17 @@ class Home : Fragment() {
     }
 
     private fun showAccessibilityConsentDialog() {
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_accessibility_consent, null)
-
-        val dialog = MaterialAlertDialogBuilder(requireContext(), R.style.ThemeOverlay_App_MaterialAlertDialog)
-            .setView(dialogView)
-            .setCancelable(true)
-            .create()
-
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-
-        dialogView.findViewById<MaterialButton>(R.id.btn_accept).setOnClickListener {
-            dialog.dismiss()
+        DialogUtils.showAccessibilityConsentDialog(requireContext()) {
             openAccessibilitySettings()
         }
-
-        dialogView.findViewById<MaterialButton>(R.id.btn_cancel).setOnClickListener {
-            dialog.dismiss()
-        }
-
-        dialog.show()
     }
 
     private fun openAccessibilitySettings() {
-        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-        startActivity(intent)
+        startActivity(AccessibilityUtils.openAccessibilitySettings())
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
-        val accessibilityManager = requireContext().getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-        val enabledServices = Settings.Secure.getString(
-            requireContext().contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        )
-        return enabledServices?.contains(requireContext().packageName) == true
+        return AccessibilityUtils.isAccessibilityServiceEnabled(requireContext(), requireContext().packageName)
     }
 
     private fun checkAccessibilityService() {

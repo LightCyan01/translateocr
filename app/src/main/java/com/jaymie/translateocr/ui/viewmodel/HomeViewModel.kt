@@ -23,9 +23,20 @@ import com.jaymie.translateocr.data.model.Translation
 import com.jaymie.translateocr.data.repository.TranslationHistoryRepository
 import com.jaymie.translateocr.utils.FloatingButtonManager
 import com.jaymie.translateocr.service.TranslateAccessibilityService
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import com.jaymie.translateocr.utils.NetworkUtils
+import com.jaymie.translateocr.utils.AccessibilityUtils
+import android.provider.Settings
 
 /**
- * ViewModel for handling translation operations and UI state in the Home screen
+ * ViewModel for handling translation operations and UI state in the Home screen.
+ * Uses:
+ * - ViewBinding for UI interactions
+ * - Coroutines for async operations
+ * - LiveData for state management
+ * - ML Kit for OCR and translation
  */
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val screenCaptureManager = ScreenCaptureManager(application)
@@ -35,7 +46,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val translationHistoryRepository = TranslationHistoryRepository()
     private val floatingButtonManager = FloatingButtonManager(application)
 
-    // UI State
+    // UI State LiveData
     private val _showFloatingButton = MutableLiveData<Boolean>()
     val showFloatingButton: LiveData<Boolean> = _showFloatingButton
 
@@ -73,11 +84,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _isHighPrecisionEnabled = MutableLiveData<Boolean>()
     val isHighPrecisionEnabled: LiveData<Boolean> = _isHighPrecisionEnabled
 
+    private var isProcessingTranslation = false
+
+    private val _uiState = MutableLiveData(HomeUiState())
+    val uiState: LiveData<HomeUiState> = _uiState
+
+    private val _navigationEvent = MutableLiveData<Event<HomeNavigationEvent>>()
+    val navigationEvent: LiveData<Event<HomeNavigationEvent>> = _navigationEvent
+
     init {
         setDefaultLanguages()
         observeAccessibilityService()
     }
 
+    /**
+     * Starts screen capture service and projection.
+     * Uses coroutines for async operations.
+     */
     fun startScreenCapture(resultCode: Int, data: Intent) {
         viewModelScope.launch {
             try {
@@ -146,16 +169,44 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (!isScreenCaptureActive) return
 
         try {
-            val translations: List<String> = when (selectedService.value) {
-                TranslationService.GOOGLE_TRANSLATE -> translateWithGoogle(textBlocks)
-                TranslationService.GOOGLE_TRANSLATE_API -> translateWithGoogle(textBlocks)
-                TranslationService.DEEPL -> translateWithDeepL(textBlocks)
-                TranslationService.DEEPL_API -> translateWithDeepL(textBlocks)
-                else -> listOf()
+            val service = selectedService.value ?: TranslationService.GOOGLE_TRANSLATE
+            val translations = when (service) {
+                TranslationService.OFFLINE -> {
+                    if (!isModelDownloaded()) {
+                        throw Exception("Language model not downloaded. Please download it first.")
+                    }
+                    val validBlocks = OverlayManager.getInstance().getValidTextBlocks(textBlocks, getApplication())
+                    validBlocks.map { line ->
+                        translationRepository.translateOffline(
+                            text = line.text,
+                            sourceLanguage = sourceLanguage.value ?: "en",
+                            targetLanguage = targetLanguage.value ?: "ja"
+                        )
+                    }
+                }
+                else -> when (service) {
+                    TranslationService.GOOGLE_TRANSLATE -> translateWithGoogle(textBlocks)
+                    TranslationService.GOOGLE_TRANSLATE_API -> translateWithGoogle(textBlocks)
+                    TranslationService.DEEPL -> translateWithDeepL(textBlocks)
+                    TranslationService.DEEPL_API -> translateWithDeepL(textBlocks)
+                    else -> listOf()
+                }
             }
 
             // Update overlay with translations
-            OverlayManager.getInstance().updateOverlayText(textBlocks, translations.joinToString("\n"))
+            if (isHighPrecisionEnabled.value == true) {
+                // Handle high precision mode
+                val accessibilityBlocks = textBlocks.map { block ->
+                    TranslateAccessibilityService.TextBlock(
+                        text = block.text,
+                        bounds = block.boundingBox ?: android.graphics.Rect(),
+                        isEditable = false
+                    )
+                }
+                OverlayManager.getInstance().updateOverlayWithHighPrecision(accessibilityBlocks, translations)
+            } else {
+                OverlayManager.getInstance().updateOverlayText(textBlocks, translations.joinToString("\n"))
+            }
 
             // Save translation to history
             val translation = Translation(
@@ -210,6 +261,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     targetLanguage = targetLanguage.value ?: "JA",
                     apiKey = if (isApiKeyService) preferencesManager.getDeepLApiKey() else null,
                     isApiKeyService = isApiKeyService
+                )
+            }
+        } catch (e: Exception) {
+            handleTranslationError(e, textBlocks)
+            emptyList()
+        }
+    }
+
+    private suspend fun translateOffline(textBlocks: List<Text.TextBlock>): List<String> {
+        return try {
+            val validBlocks = OverlayManager.getInstance().getValidTextBlocks(textBlocks, getApplication())
+            validBlocks.map { line ->
+                translationRepository.translateOffline(
+                    text = line.text,
+                    sourceLanguage = sourceLanguage.value ?: "en",
+                    targetLanguage = targetLanguage.value ?: "ja"
                 )
             }
         } catch (e: Exception) {
@@ -325,16 +392,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
+        isProcessingTranslation = false
         if (isScreenCaptureActive) {
             clearTranslationState()
             floatingButtonManager.cleanup()
         }
-        TranslateAccessibilityService.screenText.removeObserver { }
+        // Remove the observer properly
+        accessibilityObserver?.let {
+            TranslateAccessibilityService.screenText.removeObserver(it)
+        }
+        accessibilityObserver = null
     }
 
     sealed class ValidationResult {
-        object Loading : ValidationResult()
-        object Success : ValidationResult()
+        data object Loading : ValidationResult()
+        data object Success : ValidationResult()
         data class Error(val message: String) : ValidationResult()
     }
 
@@ -362,6 +434,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 if (isScreenCaptureActive) {
+                    isProcessingTranslation = false
                     screenCaptureManager.stopProjection()
                     isScreenCaptureActive = false
                     _showFloatingButton.value = false
@@ -397,51 +470,189 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun observeAccessibilityService() {
-        TranslateAccessibilityService.screenText.observeForever { textBlocks ->
-            if (isHighPrecisionEnabled.value == true) {
-                processHighPrecisionText(textBlocks)
+    private fun processHighPrecisionText(textBlocks: List<TranslateAccessibilityService.TextBlock>) {
+        if (!isScreenCaptureActive || isProcessingTranslation) return
+        
+        viewModelScope.launch {
+            isProcessingTranslation = true
+            try {
+                val translations = translateTextBlocks(textBlocks)
+                updateOverlayAndSaveHistory(textBlocks, translations)
+            } catch (e: Exception) {
+                if (isScreenCaptureActive) {
+                    _toastMessage.postValue("Translation failed: ${e.message}")
+                }
+            } finally {
+                isProcessingTranslation = false
             }
         }
     }
 
-    private fun processHighPrecisionText(textBlocks: List<TranslateAccessibilityService.TextBlock>) {
-        viewModelScope.launch {
-            try {
-                val translations = textBlocks.map { block ->
-                    when (selectedService.value) {
-                        TranslationService.GOOGLE_TRANSLATE,
-                        TranslationService.GOOGLE_TRANSLATE_API -> translationRepository.translateWithGoogle(
-                            text = block.text,
-                            sourceLanguage = sourceLanguage.value ?: "en",
-                            targetLanguage = targetLanguage.value ?: "ja",
-                            apiKey = if (selectedService.value == TranslationService.GOOGLE_TRANSLATE_API) 
-                                preferencesManager.getGoogleApiKey() else null,
-                            isApiKeyService = selectedService.value == TranslationService.GOOGLE_TRANSLATE_API
-                        )
-                        TranslationService.DEEPL,
-                        TranslationService.DEEPL_API -> translationRepository.translateWithDeepL(
-                            text = block.text,
-                            sourceLanguage = sourceLanguage.value ?: "EN",
-                            targetLanguage = targetLanguage.value ?: "JA",
-                            apiKey = if (selectedService.value == TranslationService.DEEPL_API) 
-                                preferencesManager.getDeepLApiKey() else null,
-                            isApiKeyService = selectedService.value == TranslationService.DEEPL_API
-                        )
-                        else -> block.text
-                    }
-                }
-
-                // Update overlay with the translated text
-                OverlayManager.getInstance().updateOverlayWithHighPrecision(textBlocks, translations)
-
-            } catch (e: Exception) {
-                _toastMessage.postValue("Translation failed: ${e.message}")
+    private suspend fun translateTextBlocks(
+        textBlocks: List<TranslateAccessibilityService.TextBlock>
+    ): List<String> {
+        return textBlocks.map { block ->
+            when (selectedService.value) {
+                TranslationService.OFFLINE -> translateOfflineBlock(block)
+                TranslationService.GOOGLE_TRANSLATE,
+                TranslationService.GOOGLE_TRANSLATE_API -> translateWithGoogleBlock(block)
+                TranslationService.DEEPL,
+                TranslationService.DEEPL_API -> translateWithDeepLBlock(block)
+                else -> block.text
             }
         }
+    }
+
+    private suspend fun translateOfflineBlock(block: TranslateAccessibilityService.TextBlock): String {
+        if (!isModelDownloaded()) {
+            throw Exception("Language model not downloaded. Please download it first.")
+        }
+        return translationRepository.translateOffline(
+            text = block.text,
+            sourceLanguage = sourceLanguage.value ?: "en",
+            targetLanguage = targetLanguage.value ?: "ja"
+        )
+    }
+
+    private suspend fun translateWithGoogleBlock(block: TranslateAccessibilityService.TextBlock): String {
+        return translationRepository.translateWithGoogle(
+            text = block.text,
+            sourceLanguage = sourceLanguage.value ?: "en",
+            targetLanguage = targetLanguage.value ?: "ja",
+            apiKey = if (selectedService.value == TranslationService.GOOGLE_TRANSLATE_API) 
+                preferencesManager.getGoogleApiKey() else null,
+            isApiKeyService = selectedService.value == TranslationService.GOOGLE_TRANSLATE_API
+        )
+    }
+
+    private suspend fun translateWithDeepLBlock(block: TranslateAccessibilityService.TextBlock): String {
+        return translationRepository.translateWithDeepL(
+            text = block.text,
+            sourceLanguage = sourceLanguage.value ?: "EN",
+            targetLanguage = targetLanguage.value ?: "JA",
+            apiKey = if (selectedService.value == TranslationService.DEEPL_API) 
+                preferencesManager.getDeepLApiKey() else null,
+            isApiKeyService = selectedService.value == TranslationService.DEEPL_API
+        )
+    }
+
+    private suspend fun updateOverlayAndSaveHistory(
+        textBlocks: List<TranslateAccessibilityService.TextBlock>,
+        translations: List<String>
+    ) {
+        // Update overlay
+        OverlayManager.getInstance().updateOverlayWithHighPrecision(textBlocks, translations)
+
+        // Save translation history
+        saveTranslationHistory(textBlocks, translations)
+
+        // Update word count
+        updateWordCount(textBlocks)
+    }
+
+    private suspend fun saveTranslationHistory(
+        textBlocks: List<TranslateAccessibilityService.TextBlock>,
+        translations: List<String>
+    ) {
+        val translation = Translation(
+            id = System.currentTimeMillis().toString(),
+            originalText = textBlocks.joinToString("\n") { it.text },
+            translatedText = translations.joinToString("\n"),
+            fromLanguage = sourceLanguage.value ?: "en",
+            toLanguage = targetLanguage.value ?: "ja"
+        )
+        translationHistoryRepository.saveTranslation(translation)
+    }
+
+    private suspend fun updateWordCount(textBlocks: List<TranslateAccessibilityService.TextBlock>) {
+        val wordCount = textBlocks.sumOf { block -> 
+            block.text.split("\\s+".toRegex()).size 
+        }
+        preferencesManager.incrementTranslatedWords(wordCount)
     }
 
     fun setHighPrecisionMode(enabled: Boolean) {
         _isHighPrecisionEnabled.value = enabled
     }
+
+    private fun isNetworkAvailable(): Boolean = NetworkUtils.isNetworkAvailable(getApplication())
+
+    private suspend fun isModelDownloaded(): Boolean {
+        return translationRepository.isModelDownloaded(
+            sourceLanguage = sourceLanguage.value ?: "en",
+            targetLanguage = targetLanguage.value ?: "ja"
+        )
+    }
+
+    // Store the observer reference for proper cleanup
+    private var accessibilityObserver: ((List<TranslateAccessibilityService.TextBlock>) -> Unit)? = null
+
+    private fun observeAccessibilityService() {
+        accessibilityObserver = { textBlocks ->
+            if (isHighPrecisionEnabled.value == true) {
+                processHighPrecisionText(textBlocks)
+            }
+        }
+        accessibilityObserver?.let {
+            TranslateAccessibilityService.screenText.observeForever(it)
+        }
+    }
+
+    fun onSourceLanguageClick() {
+        _navigationEvent.value = Event(HomeNavigationEvent.ShowLanguageSelect(isFromLanguage = true))
+    }
+
+    fun onTargetLanguageClick() {
+        _navigationEvent.value = Event(HomeNavigationEvent.ShowLanguageSelect(isFromLanguage = false))
+    }
+
+    fun onStartClick() {
+        when {
+            !PermissionUtils.hasOverlayPermission(getApplication()) -> {
+                _navigationEvent.value = Event(HomeNavigationEvent.ShowPermissionDialog(PermissionType.OVERLAY))
+            }
+            !hasScreenRecordingPermission() -> {
+                _navigationEvent.value = Event(HomeNavigationEvent.ShowPermissionDialog(PermissionType.SCREEN_RECORDING))
+            }
+            else -> {
+                _navigationEvent.value = Event(HomeNavigationEvent.RequestScreenCapture)
+            }
+        }
+    }
+
+    fun onHighPrecisionSwitchChanged(isChecked: Boolean) {
+        val packageName = getApplication<Application>().packageName
+        if (isChecked && !AccessibilityUtils.isAccessibilityServiceEnabled(getApplication(), packageName)) {
+            _navigationEvent.value = Event(HomeNavigationEvent.ShowAccessibilitySettings)
+            updateUiState { it.copy(isHighPrecisionEnabled = false) }
+        } else {
+            updateUiState { it.copy(isHighPrecisionEnabled = isChecked) }
+            setHighPrecisionMode(isChecked)
+        }
+    }
+
+    private fun updateUiState(update: (HomeUiState) -> HomeUiState) {
+        _uiState.value = update(_uiState.value ?: HomeUiState())
+    }
+}
+
+data class HomeUiState(
+    val sourceLanguageText: String = "English",
+    val targetLanguageText: String = "Japanese",
+    val selectedServiceText: String = TranslationService.GOOGLE_TRANSLATE.displayName,
+    val isHighPrecisionEnabled: Boolean = false,
+    val showFloatingButton: Boolean = false,
+    val isLoading: Boolean = false
+)
+
+sealed class HomeNavigationEvent {
+    data class ShowLanguageSelect(val isFromLanguage: Boolean) : HomeNavigationEvent()
+    data class ShowApiKeyDialog(val service: TranslationService) : HomeNavigationEvent()
+    data class ShowPermissionDialog(val permissionType: PermissionType) : HomeNavigationEvent()
+    data object ShowAccessibilitySettings : HomeNavigationEvent()
+    data object RequestScreenCapture : HomeNavigationEvent()
+}
+
+enum class PermissionType {
+    OVERLAY, SCREEN_RECORDING
 }
