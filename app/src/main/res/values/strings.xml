@@ -11,5 +11,6 @@
     This app requires screen recording permission to capture text from your screen for translation. We will not store or share your screen recordings.
     </string>
     <string name="exit">Exit</string>
+    <string name="accessibility_service_description">This service improves text detection accuracy for translation purposes.</string>
 
 </resources>

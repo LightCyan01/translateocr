@@ -30,6 +30,10 @@ import com.jaymie.translateocr.utils.Event
 import com.jaymie.translateocr.ui.viewmodel.HomeViewModel.ValidationResult
 import android.graphics.drawable.ColorDrawable
 import androidx.lifecycle.Observer
+import android.view.accessibility.AccessibilityManager
+import android.content.Context
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class Home : Fragment() {
     companion object {
@@ -37,8 +41,8 @@ class Home : Fragment() {
     }
 
     private val viewModel: HomeViewModel by viewModels()
-    private lateinit var floatingButtonManager: FloatingButtonManager
     private lateinit var binding: FragmentHomeBinding
+    private lateinit var floatingButtonManager: FloatingButtonManager
 
     private val overlayPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -97,10 +101,17 @@ class Home : Fragment() {
         }
 
         binding.stop.setOnClickListener {
-            floatingButtonManager.removeFloatingButton()
+            viewModel.stopScreenCapture()
         }
 
         return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        setupUI()
+        observeViewModel()
+        checkAccessibilityService()
     }
 
     private fun setupLanguageButtons() {
@@ -148,6 +159,8 @@ class Home : Fragment() {
                 floatingButtonManager.showFloatingButton {
                     viewModel.onFloatingButtonClicked()
                 }
+            } else {
+                floatingButtonManager.removeFloatingButton()
             }
         }
 
@@ -309,6 +322,71 @@ class Home : Fragment() {
         }
 
         dialog.show()
+    }
+
+    private fun setupUI() {
+        binding.highPrecisionSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked && !isAccessibilityServiceEnabled()) {
+                binding.highPrecisionSwitch.isChecked = false
+                showAccessibilityConsentDialog()
+            }
+        }
+    }
+
+    private fun showAccessibilityConsentDialog() {
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_accessibility_consent, null)
+
+        val dialog = MaterialAlertDialogBuilder(requireContext(), R.style.ThemeOverlay_App_MaterialAlertDialog)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        dialogView.findViewById<MaterialButton>(R.id.btn_accept).setOnClickListener {
+            dialog.dismiss()
+            openAccessibilitySettings()
+        }
+
+        dialogView.findViewById<MaterialButton>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun openAccessibilitySettings() {
+        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        startActivity(intent)
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val accessibilityManager = requireContext().getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+        val enabledServices = Settings.Secure.getString(
+            requireContext().contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        )
+        return enabledServices?.contains(requireContext().packageName) == true
+    }
+
+    private fun checkAccessibilityService() {
+        binding.highPrecisionSwitch.isChecked = isAccessibilityServiceEnabled()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.checkState()
+        checkAccessibilityService()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        if (requireActivity().isFinishing) {
+            floatingButtonManager.removeFloatingButton()
+            OverlayManager.getInstance().removeOverlay()
+            viewModel.clearTranslationState()
+        }
     }
 
 }

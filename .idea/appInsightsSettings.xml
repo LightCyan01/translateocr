@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.jaymie.translateocr" />
+                  <option name="mobileSdkAppId" value="1:457435528209:android:b9645ec3f903ea4d8cc5b0" />
+                  <option name="projectId" value="translateocr-d59e4" />
+                  <option name="projectNumber" value="457435528209" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
