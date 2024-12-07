@@ -91,4 +91,7 @@ dependencies {
 
     // ML Kit Translation
     implementation(libs.translate)
+
+    // Firebase Firestore
+    implementation(libs.firebase.firestore)
 }

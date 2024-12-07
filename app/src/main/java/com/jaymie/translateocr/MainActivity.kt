@@ -1,8 +1,11 @@
 package com.jaymie.translateocr
 
+import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
-import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
@@ -11,11 +14,6 @@ import com.jaymie.translateocr.databinding.ActivityMainBinding
 import com.jaymie.translateocr.ui.view.Login
 import com.jaymie.translateocr.ui.view.Profile
 import com.jaymie.translateocr.utils.ProfileImageManager
-import android.content.Context
-import android.os.Build
-import android.Manifest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.ActivityResultLauncher
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding

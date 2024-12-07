@@ -1,10 +1,8 @@
 package com.jaymie.translateocr.data.repository
 
-import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslateLanguage
-import com.google.mlkit.nl.translate.Translator
+import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions
-import com.jaymie.translateocr.data.model.TranslationService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -31,25 +29,6 @@ class TranslationRepository {
         private const val DEEPL_API_KEY = "09993180-00e7-4bc8-abe3-c63a71e1d05d:fx"
         private const val TEST_TEXT = "Hello"
         private const val TIMEOUT_MS = 10000
-    }
-
-    // Primary translation function used by the app
-    suspend fun translate(
-        text: String,
-        sourceLanguage: String,
-        targetLanguage: String,
-        service: TranslationService,
-        apiKey: String? = null
-    ): String {
-        return when (service) {
-            TranslationService.OFFLINE -> {
-                translateOffline(text, sourceLanguage, targetLanguage)
-            }
-            TranslationService.GOOGLE_TRANSLATE,
-            TranslationService.GOOGLE_TRANSLATE_API -> translateWithGoogle(text, sourceLanguage, targetLanguage, apiKey)
-            TranslationService.DEEPL,
-            TranslationService.DEEPL_API -> translateWithDeepL(text, sourceLanguage, targetLanguage, apiKey)
-        }
     }
 
     /**

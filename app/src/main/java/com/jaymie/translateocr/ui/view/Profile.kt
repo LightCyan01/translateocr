@@ -1,25 +1,21 @@
 package com.jaymie.translateocr.ui.view
 
-import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.activity.viewModels
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import com.bumptech.glide.Glide
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.jaymie.translateocr.MainActivity
 import com.jaymie.translateocr.R
 import com.jaymie.translateocr.databinding.ActivityProfileBinding
 import com.jaymie.translateocr.ui.viewmodel.ProfileViewModel
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.jaymie.translateocr.utils.PermissionUtils
-import com.bumptech.glide.Glide
 
 class Profile : AppCompatActivity() {
     private lateinit var binding: ActivityProfileBinding
