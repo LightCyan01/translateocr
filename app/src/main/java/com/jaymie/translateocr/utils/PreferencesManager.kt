@@ -13,8 +13,6 @@ class PreferencesManager(context: Context) {
         private const val PREFS_NAME = "translate_ocr_prefs"
         private const val GOOGLE_API_KEY = "google_api_key"
         private const val DEEPL_API_KEY = "deepl_api_key"
-        private const val KEY_USERNAME = "username"
-        private const val KEY_PROFILE_PICTURE = "profile_picture"
         private const val KEY_TRANSLATED_WORDS = "translated_words"
     }
 

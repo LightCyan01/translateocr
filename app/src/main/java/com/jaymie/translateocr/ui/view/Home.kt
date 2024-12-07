@@ -24,19 +24,13 @@ import com.jaymie.translateocr.ui.adapter.TranslationServiceAdapter
 import com.jaymie.translateocr.ui.viewmodel.HomeViewModel
 import com.jaymie.translateocr.ui.viewmodel.HomeViewModel.ValidationResult
 import com.jaymie.translateocr.utils.AccessibilityUtils
-import com.jaymie.translateocr.utils.DeepLConstants
 import com.jaymie.translateocr.utils.DialogUtils
 import com.jaymie.translateocr.utils.Event
 import com.jaymie.translateocr.utils.FloatingButtonManager
-import com.jaymie.translateocr.utils.GoogleLanguages
 import com.jaymie.translateocr.utils.OverlayManager
 import com.jaymie.translateocr.utils.PermissionUtils
 
 class Home : Fragment() {
-    companion object {
-        fun newInstance() = Home()
-    }
-
     private val viewModel: HomeViewModel by viewModels()
     private lateinit var binding: FragmentHomeBinding
     private lateinit var floatingButtonManager: FloatingButtonManager
@@ -218,25 +212,6 @@ class Home : Fragment() {
             )
         }
         languageSelectLauncher.launch(intent)
-    }
-
-    private fun getLanguageDisplayName(code: String): String {
-        val selectedService = viewModel.selectedService.value ?: TranslationService.GOOGLE_TRANSLATE
-
-        return when (selectedService) {
-            TranslationService.DEEPL, TranslationService.DEEPL_API -> {
-                DeepLConstants.SUPPORTED_SOURCE_LANGUAGES.find { it.code == code }?.name
-                    ?: DeepLConstants.SUPPORTED_TARGET_LANGUAGES.find { it.code == code }?.name
-                    ?: code
-            }
-            TranslationService.GOOGLE_TRANSLATE, TranslationService.GOOGLE_TRANSLATE_API -> {
-                GoogleLanguages.SUPPORTED_LANGUAGES.find { it.code == code }?.name ?: code
-            }
-            TranslationService.OFFLINE -> {
-                // For offline, fallback to Google Translate if necessary
-                GoogleLanguages.SUPPORTED_LANGUAGES.find { it.code == code }?.name ?: code
-            }
-        }
     }
 
     private fun showApiKeyDialog(service: TranslationService) {

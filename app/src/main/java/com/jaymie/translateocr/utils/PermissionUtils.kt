@@ -16,10 +16,6 @@ import androidx.core.content.ContextCompat
 import com.jaymie.translateocr.R
 
 object PermissionUtils {
-    // Check if the app has permission to draw over other apps
-    fun hasOverlayPermission(context: Context): Boolean {
-        return Settings.canDrawOverlays(context)
-    }
 
     // Check if the screen recording permission is granted
     fun hasScreenRecordingPermission(): Boolean {
