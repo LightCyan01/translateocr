@@ -85,8 +85,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private var isProcessingTranslation = false
 
-    private val _uiState = MutableLiveData(HomeUiState())
-
     init {
         setDefaultLanguages()
         observeAccessibilityService()
