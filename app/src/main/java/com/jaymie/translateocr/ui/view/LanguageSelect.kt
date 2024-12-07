@@ -1,5 +1,6 @@
 package com.jaymie.translateocr.ui.view
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -7,26 +8,15 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.jaymie.translateocr.R
-import com.jaymie.translateocr.databinding.ActivityLanguageSelectBinding
-import com.jaymie.translateocr.ui.adapter.LanguageAdapter
-import com.jaymie.translateocr.utils.DeepLConstants
-import com.jaymie.translateocr.utils.GoogleLanguages
-import com.jaymie.translateocr.utils.ModelManager
 import com.jaymie.translateocr.data.model.Language
+import com.jaymie.translateocr.databinding.ActivityLanguageSelectBinding
 import com.jaymie.translateocr.service.ModelDownloadService
-import kotlinx.coroutines.launch
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.ActivityResultLauncher
-import androidx.core.content.ContextCompat
-import androidx.activity.viewModels
+import com.jaymie.translateocr.ui.adapter.LanguageAdapter
 import com.jaymie.translateocr.ui.viewmodel.DownloadEvent
 import com.jaymie.translateocr.ui.viewmodel.LanguageSelectUiState
 import com.jaymie.translateocr.ui.viewmodel.LanguageSelectViewModel
@@ -51,9 +41,12 @@ class LanguageSelect : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("InlinedApi")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        registerReceiver(downloadReceiver, IntentFilter(ModelDownloadService.ACTION_DOWNLOAD_COMPLETE))
+        registerReceiver(downloadReceiver, IntentFilter(ModelDownloadService.ACTION_DOWNLOAD_COMPLETE),
+            RECEIVER_NOT_EXPORTED
+        )
         binding = ActivityLanguageSelectBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -69,9 +62,7 @@ class LanguageSelect : AppCompatActivity() {
     private fun setupRecyclerView() {
         val isGoogleTranslate = !intent.getBooleanExtra(EXTRA_TRANSLATION_SERVICE, false)
         adapter = LanguageAdapter(
-            context = this,
             isGoogleTranslate = isGoogleTranslate,
-            modelManager = ModelManager(this),
             onLanguageClick = { language -> viewModel.onLanguageClick(language) },
             onDownloadClick = { language -> showDownloadDialog(language) }
         )

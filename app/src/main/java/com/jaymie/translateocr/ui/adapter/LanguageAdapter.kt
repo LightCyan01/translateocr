@@ -1,6 +1,5 @@
 package com.jaymie.translateocr.ui.adapter
 
-import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,12 +9,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.jaymie.translateocr.R
 import com.jaymie.translateocr.data.model.Language
 import com.jaymie.translateocr.databinding.ItemLanguageBinding
-import com.jaymie.translateocr.utils.ModelManager
 
 class LanguageAdapter(
-    private val context: Context,
     private val isGoogleTranslate: Boolean = true,
-    private val modelManager: ModelManager,
     private val onLanguageClick: (Language) -> Unit,
     private val onDownloadClick: (Language) -> Unit
 ) : ListAdapter<Language, LanguageAdapter.ViewHolder>(LanguageDiffCallback()) {

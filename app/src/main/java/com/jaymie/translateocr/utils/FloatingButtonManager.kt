@@ -176,5 +176,4 @@ class FloatingButtonManager(private val context: Context) {
         }
     }
 
-    fun isFloatingButtonShowing(): Boolean = isShowing
 }

@@ -1,19 +1,17 @@
 package com.jaymie.translateocr.ui.view
 
 import android.content.Intent
-import androidx.fragment.app.viewModels
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.DividerItemDecoration
-import com.google.firebase.auth.FirebaseAuth
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.jaymie.translateocr.databinding.FragmentHistoryBinding
 import com.jaymie.translateocr.ui.adapter.TranslationHistoryAdapter
 import com.jaymie.translateocr.ui.viewmodel.HistoryViewModel
-import com.jaymie.translateocr.ui.view.Login
 
 class History : Fragment() {
     private lateinit var binding: FragmentHistoryBinding

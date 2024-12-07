@@ -228,19 +228,6 @@ class OverlayManager private constructor() {
         return (24 * context.resources.displayMetrics.density).toInt()
     }
 
-    fun getValidTextForTranslation(textBlocks: List<Text.TextBlock>, context: Context): String {
-        val statusBarHeight = getStatusBarHeight(context)
-        
-        // Filter out status bar text and combine remaining text
-        return textBlocks.flatMap { block ->
-            block.lines.filter { line ->
-                line.boundingBox?.let { box ->
-                    box.top > statusBarHeight
-                } ?: false
-            }
-        }.joinToString("\n") { it.text }
-    }
-
     fun getValidTextBlocks(textBlocks: List<Text.TextBlock>, context: Context): List<Text.Line> {
         val statusBarHeight = getStatusBarHeight(context)
         

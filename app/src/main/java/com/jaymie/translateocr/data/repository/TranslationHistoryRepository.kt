@@ -5,7 +5,6 @@ import com.google.firebase.storage.FirebaseStorage
 import com.jaymie.translateocr.data.model.Translation
 import kotlinx.coroutines.tasks.await
 import java.nio.charset.StandardCharsets
-import com.google.firebase.FirebaseApp
 
 /**
  * Repository for managing translation history using Firebase Storage.

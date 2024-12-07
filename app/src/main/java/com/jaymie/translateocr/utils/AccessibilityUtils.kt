@@ -10,7 +10,7 @@ import android.view.accessibility.AccessibilityManager
  */
 object AccessibilityUtils {
     fun isAccessibilityServiceEnabled(context: Context, packageName: String): Boolean {
-        val accessibilityManager = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+        context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
         val enabledServices = Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES

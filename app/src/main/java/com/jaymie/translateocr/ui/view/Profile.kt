@@ -22,16 +22,6 @@ class Profile : AppCompatActivity() {
     private val viewModel: ProfileViewModel by viewModels()
     private val auth = FirebaseAuth.getInstance()
 
-    private val storagePermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            launchImagePicker()
-        } else {
-            Toast.makeText(this, "Storage permission is required to change profile picture", Toast.LENGTH_LONG).show()
-        }
-    }
-
     private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { imageUri ->
             // Show loading state

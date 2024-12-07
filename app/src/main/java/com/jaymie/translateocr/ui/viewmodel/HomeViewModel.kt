@@ -3,36 +3,30 @@ package com.jaymie.translateocr.ui.viewmodel
 import android.app.Application
 import android.content.Intent
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.google.mlkit.vision.text.Text
+import com.jaymie.translateocr.data.model.Translation
+import com.jaymie.translateocr.data.model.TranslationService
+import com.jaymie.translateocr.data.repository.FirestoreRepository
 import com.jaymie.translateocr.data.repository.OCRRepository
-import com.jaymie.translateocr.utils.PermissionUtils
-import com.jaymie.translateocr.utils.ScreenCaptureManager
-import com.jaymie.translateocr.utils.OverlayManager
+import com.jaymie.translateocr.data.repository.TranslationHistoryRepository
+import com.jaymie.translateocr.data.repository.TranslationRepository
 import com.jaymie.translateocr.data.service.ScreenCaptureService
+import com.jaymie.translateocr.service.TranslateAccessibilityService
+import com.jaymie.translateocr.utils.DeepLConstants
+import com.jaymie.translateocr.utils.Event
+import com.jaymie.translateocr.utils.FloatingButtonManager
+import com.jaymie.translateocr.utils.GoogleLanguages
+import com.jaymie.translateocr.utils.OverlayManager
+import com.jaymie.translateocr.utils.PermissionUtils
+import com.jaymie.translateocr.utils.PreferencesManager
+import com.jaymie.translateocr.utils.ScreenCaptureManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.google.mlkit.vision.text.Text
-import com.jaymie.translateocr.data.model.TranslationService
-import com.jaymie.translateocr.data.repository.TranslationRepository
-import com.jaymie.translateocr.utils.Event
-import com.jaymie.translateocr.utils.PreferencesManager
-import com.jaymie.translateocr.data.model.Translation
-import com.jaymie.translateocr.data.repository.TranslationHistoryRepository
-import com.jaymie.translateocr.utils.FloatingButtonManager
-import com.jaymie.translateocr.service.TranslateAccessibilityService
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import com.jaymie.translateocr.utils.NetworkUtils
-import com.jaymie.translateocr.utils.AccessibilityUtils
-import android.provider.Settings
-import com.jaymie.translateocr.data.repository.FirestoreRepository
-import android.util.Log
-import com.jaymie.translateocr.utils.DeepLConstants
-import com.jaymie.translateocr.utils.GoogleLanguages
 
 /**
  * ViewModel for handling translation operations and UI state in the Home screen.
@@ -92,10 +86,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var isProcessingTranslation = false
 
     private val _uiState = MutableLiveData(HomeUiState())
-    val uiState: LiveData<HomeUiState> = _uiState
 
     private val _navigationEvent = MutableLiveData<Event<HomeNavigationEvent>>()
-    val navigationEvent: LiveData<Event<HomeNavigationEvent>> = _navigationEvent
 
     init {
         setDefaultLanguages()
@@ -267,22 +259,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     targetLanguage = targetLanguage.value ?: "JA",
                     apiKey = if (isApiKeyService) preferencesManager.getDeepLApiKey() else null,
                     isApiKeyService = isApiKeyService
-                )
-            }
-        } catch (e: Exception) {
-            handleTranslationError(e, textBlocks)
-            emptyList()
-        }
-    }
-
-    private suspend fun translateOffline(textBlocks: List<Text.TextBlock>): List<String> {
-        return try {
-            val validBlocks = OverlayManager.getInstance().getValidTextBlocks(textBlocks, getApplication())
-            validBlocks.map { line ->
-                translationRepository.translateOffline(
-                    text = line.text,
-                    sourceLanguage = sourceLanguage.value ?: "en",
-                    targetLanguage = targetLanguage.value ?: "ja"
                 )
             }
         } catch (e: Exception) {
@@ -600,8 +576,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _isHighPrecisionEnabled.value = enabled
     }
 
-    private fun isNetworkAvailable(): Boolean = NetworkUtils.isNetworkAvailable(getApplication())
-
     private suspend fun isModelDownloaded(): Boolean {
         return translationRepository.isModelDownloaded(
             sourceLanguage = sourceLanguage.value ?: "en",
@@ -623,39 +597,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun onSourceLanguageClick() {
-        _navigationEvent.value = Event(HomeNavigationEvent.ShowLanguageSelect(isFromLanguage = true))
-    }
-
-    fun onTargetLanguageClick() {
-        _navigationEvent.value = Event(HomeNavigationEvent.ShowLanguageSelect(isFromLanguage = false))
-    }
-
-    fun onStartClick() {
-        when {
-            !PermissionUtils.hasOverlayPermission(getApplication()) -> {
-                _navigationEvent.value = Event(HomeNavigationEvent.ShowPermissionDialog(PermissionType.OVERLAY))
-            }
-            !hasScreenRecordingPermission() -> {
-                _navigationEvent.value = Event(HomeNavigationEvent.ShowPermissionDialog(PermissionType.SCREEN_RECORDING))
-            }
-            else -> {
-                _navigationEvent.value = Event(HomeNavigationEvent.RequestScreenCapture)
-            }
-        }
-    }
-
-    fun onHighPrecisionSwitchChanged(isChecked: Boolean) {
-        val packageName = getApplication<Application>().packageName
-        if (isChecked && !AccessibilityUtils.isAccessibilityServiceEnabled(getApplication(), packageName)) {
-            _navigationEvent.value = Event(HomeNavigationEvent.ShowAccessibilitySettings)
-            updateUiState { it.copy(isHighPrecisionEnabled = false) }
-        } else {
-            updateUiState { it.copy(isHighPrecisionEnabled = isChecked) }
-            setHighPrecisionMode(isChecked)
-        }
-    }
-
     private fun updateUiState(update: (HomeUiState) -> HomeUiState) {
         _uiState.value = update(_uiState.value ?: HomeUiState())
     }
@@ -672,7 +613,6 @@ data class HomeUiState(
 
 sealed class HomeNavigationEvent {
     data class ShowLanguageSelect(val isFromLanguage: Boolean) : HomeNavigationEvent()
-    data class ShowApiKeyDialog(val service: TranslationService) : HomeNavigationEvent()
     data class ShowPermissionDialog(val permissionType: PermissionType) : HomeNavigationEvent()
     data object ShowAccessibilitySettings : HomeNavigationEvent()
     data object RequestScreenCapture : HomeNavigationEvent()

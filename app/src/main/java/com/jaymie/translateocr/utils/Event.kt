@@ -37,9 +37,4 @@ open class Event<out T>(private val content: T) {
         }
     }
 
-    /**
-     * Returns the content, even if it's already been handled.
-     * @return The content
-     */
-    fun peekContent(): T = content
-} 
+}

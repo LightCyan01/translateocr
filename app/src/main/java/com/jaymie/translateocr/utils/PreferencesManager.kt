@@ -38,18 +38,6 @@ class PreferencesManager(context: Context) {
     fun getGoogleApiKey(): String? = prefs.getString(GOOGLE_API_KEY, null)
     fun getDeepLApiKey(): String? = prefs.getString(DEEPL_API_KEY, null)
 
-    fun getUsername(): String? = prefs.getString(KEY_USERNAME, null)
-    
-    fun saveUsername(username: String) {
-        prefs.edit().putString(KEY_USERNAME, username).apply()
-    }
-
-    fun getProfilePictureUri(): String? = prefs.getString(KEY_PROFILE_PICTURE, null)
-    
-    fun saveProfilePictureUri(uri: String) {
-        prefs.edit().putString(KEY_PROFILE_PICTURE, uri).apply()
-    }
-
     fun getTranslatedWordsCount(): Int = prefs.getInt(KEY_TRANSLATED_WORDS, 0)
     
     fun incrementTranslatedWords(count: Int = 1) {

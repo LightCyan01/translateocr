@@ -8,7 +8,6 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions
 import kotlinx.coroutines.tasks.await
-import java.io.File
 
 /**
  * Manages ML Kit translation model downloads and state persistence.
@@ -34,33 +33,6 @@ class ModelManager(private val context: Context) {
      */
     fun isModelDownloadedSync(languageCode: String): Boolean {
         return downloadedModels.contains(languageCode)
-    }
-
-    /**
-     * Asynchronously checks if a model is downloaded and available in ML Kit.
-     * Uses [kotlinx.coroutines.tasks.await] to handle ML Kit's Tasks API.
-     * 
-     * @param languageCode The language code to check
-     * @return true if the model is downloaded and ready to use
-     */
-    suspend fun checkModelDownloaded(languageCode: String): Boolean {
-        if (downloadedModels.contains(languageCode)) {
-            val options = TranslatorOptions.Builder()
-                .setSourceLanguage(TranslateLanguage.ENGLISH)
-                .setTargetLanguage(TranslateLanguage.fromLanguageTag(languageCode) ?: languageCode)
-                .build()
-            val translator = Translation.getClient(options)
-            
-            return try {
-                translator.downloadModelIfNeeded().await()
-                true
-            } catch (e: Exception) {
-                downloadedModels.remove(languageCode)
-                saveDownloadedModels()
-                false
-            }
-        }
-        return false
     }
 
     /**

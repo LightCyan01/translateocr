@@ -1,19 +1,18 @@
 package com.jaymie.translateocr.utils
 
+import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.provider.Settings
+import android.view.LayoutInflater
+import android.widget.Button
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import android.view.LayoutInflater
-import android.view.View
-import android.view.Window
-import android.widget.Button
-import android.app.Dialog
 import com.jaymie.translateocr.R
 
 object PermissionUtils {
@@ -74,6 +73,7 @@ object PermissionUtils {
     }
 
     // Request storage permission
+    @SuppressLint("InlinedApi")
     fun requestStoragePermission(activity: Activity, requestCode: Int) {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             ActivityCompat.requestPermissions(
