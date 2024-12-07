@@ -19,6 +19,10 @@ import com.jaymie.translateocr.data.model.TranslationService
 import com.jaymie.translateocr.data.repository.TranslationRepository
 import com.jaymie.translateocr.utils.Event
 import com.jaymie.translateocr.utils.PreferencesManager
+import com.jaymie.translateocr.data.model.Translation
+import com.jaymie.translateocr.data.repository.TranslationHistoryRepository
+import com.jaymie.translateocr.utils.FloatingButtonManager
+import com.jaymie.translateocr.service.TranslateAccessibilityService
 
 /**
  * ViewModel for handling translation operations and UI state in the Home screen
@@ -28,13 +32,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val ocrRepository = OCRRepository(application)
     private val translationRepository = TranslationRepository()
     private val preferencesManager = PreferencesManager(application)
+    private val translationHistoryRepository = TranslationHistoryRepository()
+    private val floatingButtonManager = FloatingButtonManager(application)
 
     // UI State
     private val _showFloatingButton = MutableLiveData<Boolean>()
     val showFloatingButton: LiveData<Boolean> = _showFloatingButton
 
-    private val _toastMessage = MutableLiveData<String>()
-    val toastMessage: LiveData<String> = _toastMessage
+    private val _toastMessage = MutableLiveData<String?>()
+    val toastMessage: LiveData<String?> = _toastMessage
 
     private val _ocrResult = MutableLiveData<List<Text.TextBlock>>()
     val ocrResult: LiveData<List<Text.TextBlock>> = _ocrResult
@@ -62,8 +68,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _validationResult = MutableLiveData<ValidationResult>()
     val validationResult: LiveData<ValidationResult> = _validationResult
 
+    private var isScreenCaptureActive = false
+
+    private val _isHighPrecisionEnabled = MutableLiveData<Boolean>()
+    val isHighPrecisionEnabled: LiveData<Boolean> = _isHighPrecisionEnabled
+
     init {
         setDefaultLanguages()
+        observeAccessibilityService()
     }
 
     fun startScreenCapture(resultCode: Int, data: Intent) {
@@ -73,6 +85,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 delay(100)
                 screenCaptureManager.startProjection(resultCode, data)
                 _showFloatingButton.value = true
+                isScreenCaptureActive = true
             } catch (e: Exception) {
                 _toastMessage.postValue("Error starting screen capture: ${e.message}")
             }
@@ -130,25 +143,47 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun processTranslation(textBlocks: List<Text.TextBlock>) {
-        when (selectedService.value) {
-            TranslationService.GOOGLE_TRANSLATE -> translateWithGoogle(textBlocks)
-            TranslationService.GOOGLE_TRANSLATE_API -> translateWithGoogle(textBlocks)
-            TranslationService.DEEPL -> translateWithDeepL(textBlocks)
-            TranslationService.DEEPL_API -> translateWithDeepL(textBlocks)
-            else -> OverlayManager.getInstance().updateOverlayText(textBlocks)
+        if (!isScreenCaptureActive) return
+
+        try {
+            val translations: List<String> = when (selectedService.value) {
+                TranslationService.GOOGLE_TRANSLATE -> translateWithGoogle(textBlocks)
+                TranslationService.GOOGLE_TRANSLATE_API -> translateWithGoogle(textBlocks)
+                TranslationService.DEEPL -> translateWithDeepL(textBlocks)
+                TranslationService.DEEPL_API -> translateWithDeepL(textBlocks)
+                else -> listOf()
+            }
+
+            // Update overlay with translations
+            OverlayManager.getInstance().updateOverlayText(textBlocks, translations.joinToString("\n"))
+
+            // Save translation to history
+            val translation = Translation(
+                id = System.currentTimeMillis().toString(),
+                originalText = textBlocks.joinToString("\n") { it.text },
+                translatedText = translations.joinToString("\n"),
+                fromLanguage = sourceLanguage.value ?: "en",
+                toLanguage = targetLanguage.value ?: "ja"
+            )
+            translationHistoryRepository.saveTranslation(translation)
+
+            // After successful translation, increment the word count
+            val wordCount = textBlocks.sumOf { block -> 
+                block.text.split("\\s+".toRegex()).size 
+            }
+            preferencesManager.incrementTranslatedWords(wordCount)
+
+        } catch (e: Exception) {
+            handleTranslationError(e, textBlocks)
         }
     }
 
-    private suspend fun translateWithGoogle(textBlocks: List<Text.TextBlock>) {
-        try {
+    private suspend fun translateWithGoogle(textBlocks: List<Text.TextBlock>): List<String> {
+        return try {
             val isApiKeyService = selectedService.value == TranslationService.GOOGLE_TRANSLATE_API
             val validBlocks = OverlayManager.getInstance().getValidTextBlocks(textBlocks, getApplication())
 
-            if (validBlocks.size > 5) {
-                _toastMessage.postValue("Translating multiple text blocks...")
-            }
-
-            val translations = validBlocks.map { line ->
+            validBlocks.map { line ->
                 translationRepository.translateWithGoogle(
                     text = line.text,
                     sourceLanguage = sourceLanguage.value ?: "en",
@@ -157,25 +192,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     isApiKeyService = isApiKeyService
                 )
             }
-
-            OverlayManager.getInstance().updateOverlayText(textBlocks, translations.joinToString("\n"))
         } catch (e: Exception) {
             handleTranslationError(e, textBlocks)
-        } finally {
-            OverlayManager.getInstance().showLoading(false)
+            emptyList()
         }
     }
 
-    private suspend fun translateWithDeepL(textBlocks: List<Text.TextBlock>) {
-        try {
+    private suspend fun translateWithDeepL(textBlocks: List<Text.TextBlock>): List<String> {
+        return try {
             val isApiKeyService = selectedService.value == TranslationService.DEEPL_API
             val validBlocks = OverlayManager.getInstance().getValidTextBlocks(textBlocks, getApplication())
 
-            if (validBlocks.size > 5) {
-                _toastMessage.postValue("Translating multiple text blocks...")
-            }
-
-            val translations = validBlocks.map { line ->
+            validBlocks.map { line ->
                 translationRepository.translateWithDeepL(
                     text = line.text,
                     sourceLanguage = sourceLanguage.value ?: "EN",
@@ -184,12 +212,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     isApiKeyService = isApiKeyService
                 )
             }
-
-            OverlayManager.getInstance().updateOverlayText(textBlocks, translations.joinToString("\n"))
         } catch (e: Exception) {
             handleTranslationError(e, textBlocks)
-        } finally {
-            OverlayManager.getInstance().showLoading(false)
+            emptyList()
         }
     }
 
@@ -300,8 +325,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
-        screenCaptureManager.stopProjection()
-        getApplication<Application>().stopService(Intent(getApplication(), ScreenCaptureService::class.java))
+        if (isScreenCaptureActive) {
+            clearTranslationState()
+            floatingButtonManager.cleanup()
+        }
+        TranslateAccessibilityService.screenText.removeObserver { }
     }
 
     sealed class ValidationResult {
@@ -328,5 +356,92 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 // These services don't require API keys, so no action needed
             }
         }
+    }
+
+    fun clearTranslationState() {
+        viewModelScope.launch {
+            try {
+                if (isScreenCaptureActive) {
+                    screenCaptureManager.stopProjection()
+                    isScreenCaptureActive = false
+                    _showFloatingButton.value = false
+                    floatingButtonManager.removeFloatingButton()
+                    OverlayManager.getInstance().removeOverlay()
+                    _ocrResult.value = emptyList()
+                    _toastMessage.postValue(null)
+                    getApplication<Application>().stopService(Intent(getApplication(), ScreenCaptureService::class.java))
+                }
+            } catch (e: Exception) {
+                // Handle any cleanup errors silently
+            }
+        }
+    }
+
+    fun stopScreenCapture() {
+        viewModelScope.launch {
+            try {
+                screenCaptureManager.stopProjection()
+                isScreenCaptureActive = false
+                _showFloatingButton.value = false
+                floatingButtonManager.removeFloatingButton()
+                getApplication<Application>().stopService(Intent(getApplication(), ScreenCaptureService::class.java))
+            } catch (e: Exception) {
+                _toastMessage.postValue("Error stopping screen capture: ${e.message}")
+            }
+        }
+    }
+
+    fun checkState() {
+        if (!isScreenCaptureActive) {
+            _showFloatingButton.value = false
+        }
+    }
+
+    private fun observeAccessibilityService() {
+        TranslateAccessibilityService.screenText.observeForever { textBlocks ->
+            if (isHighPrecisionEnabled.value == true) {
+                processHighPrecisionText(textBlocks)
+            }
+        }
+    }
+
+    private fun processHighPrecisionText(textBlocks: List<TranslateAccessibilityService.TextBlock>) {
+        viewModelScope.launch {
+            try {
+                val translations = textBlocks.map { block ->
+                    when (selectedService.value) {
+                        TranslationService.GOOGLE_TRANSLATE,
+                        TranslationService.GOOGLE_TRANSLATE_API -> translationRepository.translateWithGoogle(
+                            text = block.text,
+                            sourceLanguage = sourceLanguage.value ?: "en",
+                            targetLanguage = targetLanguage.value ?: "ja",
+                            apiKey = if (selectedService.value == TranslationService.GOOGLE_TRANSLATE_API) 
+                                preferencesManager.getGoogleApiKey() else null,
+                            isApiKeyService = selectedService.value == TranslationService.GOOGLE_TRANSLATE_API
+                        )
+                        TranslationService.DEEPL,
+                        TranslationService.DEEPL_API -> translationRepository.translateWithDeepL(
+                            text = block.text,
+                            sourceLanguage = sourceLanguage.value ?: "EN",
+                            targetLanguage = targetLanguage.value ?: "JA",
+                            apiKey = if (selectedService.value == TranslationService.DEEPL_API) 
+                                preferencesManager.getDeepLApiKey() else null,
+                            isApiKeyService = selectedService.value == TranslationService.DEEPL_API
+                        )
+                        else -> block.text
+                    }
+                }
+
+                // Update overlay with the translated text
+                OverlayManager.getInstance().updateOverlayWithHighPrecision(textBlocks, translations)
+
+            } catch (e: Exception) {
+                _toastMessage.postValue("Translation failed: ${e.message}")
+            }
+        }
+    }
+
+    fun setHighPrecisionMode(enabled: Boolean) {
+        _isHighPrecisionEnabled.value = enabled
     }
 }

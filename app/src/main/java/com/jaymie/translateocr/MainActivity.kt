@@ -1,14 +1,20 @@
 package com.jaymie.translateocr
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
+import com.google.firebase.auth.FirebaseAuth
 import com.jaymie.translateocr.databinding.ActivityMainBinding
+import com.jaymie.translateocr.ui.view.Login
+import com.jaymie.translateocr.ui.view.Profile
+import com.jaymie.translateocr.utils.ProfileImageManager
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
+    private val auth = FirebaseAuth.getInstance()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,22 +25,30 @@ class MainActivity : AppCompatActivity() {
         setupToolbar()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Refresh profile picture when returning to MainActivity
+        loadProfilePicture()
+    }
+
     private fun setupToolbar() {
         binding.toolbar.profileButton.setOnClickListener {
-            // TODO: Implement profile functionality
-            Toast.makeText(this, "Profile coming soon!", Toast.LENGTH_SHORT).show()
+            if (auth.currentUser != null) {
+                startActivity(Intent(this, Profile::class.java))
+            } else {
+                startActivity(Intent(this, Login::class.java))
+            }
         }
+        loadProfilePicture()
+    }
+
+    private fun loadProfilePicture() {
+        ProfileImageManager.loadProfileImage(binding.toolbar.profileButton)
     }
 
     private fun setupNavigation() {
-        // Get the NavHostFragment
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
-
-        // Get the NavController from the NavHostFragment
         val navController = navHostFragment.navController
-
-        // Set up bottom navigation
         binding.bottomNav.setupWithNavController(navController)
     }
-
 }

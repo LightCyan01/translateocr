@@ -17,6 +17,7 @@ import android.widget.FrameLayout
 import com.google.mlkit.vision.text.Text
 import android.graphics.Paint
 import android.util.TypedValue
+import com.jaymie.translateocr.service.TranslateAccessibilityService
 
 class OverlayManager private constructor() {
 
@@ -97,9 +98,13 @@ class OverlayManager private constructor() {
      * Removes the overlay from the screen.
      */
     fun removeOverlay() {
-        if (overlayView != null) {
-            windowManager.removeView(overlayView)
-            overlayView = null
+        try {
+            if (overlayView != null) {
+                windowManager.removeView(overlayView)
+                overlayView = null
+            }
+        } catch (e: Exception) {
+            // Handle removal errors silently
         }
     }
 
@@ -113,6 +118,8 @@ class OverlayManager private constructor() {
     }
 
     fun updateOverlayText(textBlocks: List<Text.TextBlock>, translatedText: String? = null) {
+        if (overlayView == null) return  // Don't update if overlay is not showing
+        
         try {
             overlayContainer?.let { container ->
                 container.removeAllViews()
@@ -238,5 +245,13 @@ class OverlayManager private constructor() {
                 } ?: false
             }
         }
+    }
+
+    fun updateOverlayWithHighPrecision(
+        textBlocks: List<TranslateAccessibilityService.TextBlock>,
+        translations: List<String>
+    ) {
+        // Update your overlay UI to show translations at the exact positions
+        // of the original text using the bounds information from textBlocks
     }
 }
