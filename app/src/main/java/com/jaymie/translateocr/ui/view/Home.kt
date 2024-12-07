@@ -68,16 +68,14 @@ class Home : Fragment() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.let { data ->
-                val languageCode = data.getStringExtra(LanguageSelect.EXTRA_SELECTED_LANGUAGE)
+                val code = data.getStringExtra(LanguageSelect.EXTRA_SELECTED_LANGUAGE) ?: return@let
+                val displayName = data.getStringExtra(LanguageSelect.EXTRA_LANGUAGE_DISPLAY_NAME) ?: code
                 val isFromLanguage = data.getBooleanExtra(LanguageSelect.EXTRA_IS_FROM_LANGUAGE, true)
-                
-                languageCode?.let {
-                    val displayName = getLanguageDisplayName(it)
-                    if (isFromLanguage) {
-                        viewModel.setSourceLanguage(it, displayName)
-                    } else {
-                        viewModel.setTargetLanguage(it, displayName)
-                    }
+
+                if (isFromLanguage) {
+                    viewModel.setSourceLanguage(code, displayName)
+                } else {
+                    viewModel.setTargetLanguage(code, displayName)
                 }
             }
         }

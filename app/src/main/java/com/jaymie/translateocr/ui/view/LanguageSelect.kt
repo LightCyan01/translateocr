@@ -121,8 +121,11 @@ class LanguageSelect : AppCompatActivity() {
     }
 
     private fun returnLanguage(languageCode: String) {
+        val language = viewModel.uiState.value?.languages?.find { it.code == languageCode }
+        
         setResult(Activity.RESULT_OK, Intent().apply {
             putExtra(EXTRA_SELECTED_LANGUAGE, languageCode)
+            putExtra(EXTRA_LANGUAGE_DISPLAY_NAME, language?.name ?: languageCode)
             putExtra(EXTRA_IS_FROM_LANGUAGE, intent.getBooleanExtra(EXTRA_IS_FROM_LANGUAGE, true))
         })
         finish()
@@ -135,6 +138,7 @@ class LanguageSelect : AppCompatActivity() {
 
     companion object {
         const val EXTRA_SELECTED_LANGUAGE = "selected_language"
+        const val EXTRA_LANGUAGE_DISPLAY_NAME = "language_display_name"
         const val EXTRA_IS_FROM_LANGUAGE = "is_from_language"
         const val EXTRA_TRANSLATION_SERVICE = "translation_service"
     }

@@ -29,6 +29,10 @@ import android.net.NetworkCapabilities
 import com.jaymie.translateocr.utils.NetworkUtils
 import com.jaymie.translateocr.utils.AccessibilityUtils
 import android.provider.Settings
+import com.jaymie.translateocr.data.repository.FirestoreRepository
+import android.util.Log
+import com.jaymie.translateocr.utils.DeepLConstants
+import com.jaymie.translateocr.utils.GoogleLanguages
 
 /**
  * ViewModel for handling translation operations and UI state in the Home screen.
@@ -45,6 +49,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val preferencesManager = PreferencesManager(application)
     private val translationHistoryRepository = TranslationHistoryRepository()
     private val floatingButtonManager = FloatingButtonManager(application)
+    private val firestoreRepository = FirestoreRepository()
 
     // UI State LiveData
     private val _showFloatingButton = MutableLiveData<Boolean>()
@@ -223,6 +228,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 block.text.split("\\s+".toRegex()).size 
             }
             preferencesManager.incrementTranslatedWords(wordCount)
+            firestoreRepository.updateUserStats(wordCount)
 
         } catch (e: Exception) {
             handleTranslationError(e, textBlocks)
@@ -375,12 +381,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun setDefaultLanguagesForService(service: TranslationService) {
         val isDeepL = service == TranslationService.DEEPL || service == TranslationService.DEEPL_API
         
-        // DeepL uses uppercase, others use lowercase
-        val sourceCode = if (isDeepL) "EN" else "en"
-        val targetCode = if (isDeepL) "JA" else "ja"
-        
-        setSourceLanguage(sourceCode, "English")
-        setTargetLanguage(targetCode, "Japanese")
+        // Use the language's name property instead of code for display
+        val sourceLanguage = if (isDeepL) {
+            DeepLConstants.SUPPORTED_SOURCE_LANGUAGES.find { it.code == "EN" }
+        } else {
+            GoogleLanguages.SUPPORTED_LANGUAGES.find { it.code == "en" }
+        }
+
+        val targetLanguage = if (isDeepL) {
+            DeepLConstants.SUPPORTED_TARGET_LANGUAGES.find { it.code == "JA" }
+        } else {
+            GoogleLanguages.SUPPORTED_LANGUAGES.find { it.code == "ja" }
+        }
+
+        sourceLanguage?.let { setSourceLanguage(it.code, it.name) }
+        targetLanguage?.let { setTargetLanguage(it.code, it.name) }
     }
 
     private fun handleTranslationError(e: Exception, textBlocks: List<Text.TextBlock>) {
@@ -565,10 +580,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun updateWordCount(textBlocks: List<TranslateAccessibilityService.TextBlock>) {
-        val wordCount = textBlocks.sumOf { block -> 
-            block.text.split("\\s+".toRegex()).size 
+        try {
+            val wordCount = textBlocks.sumOf { block -> 
+                block.text.split("\\s+".toRegex()).size 
+            }
+            preferencesManager.incrementTranslatedWords(wordCount)
+            
+            // Only update Firestore if word count is positive
+            if (wordCount > 0) {
+                firestoreRepository.updateUserStats(wordCount)
+            }
+        } catch (e: Exception) {
+            Log.e("HomeViewModel", "Error updating word count", e)
+            // Don't throw the exception to prevent translation failure
         }
-        preferencesManager.incrementTranslatedWords(wordCount)
     }
 
     fun setHighPrecisionMode(enabled: Boolean) {
