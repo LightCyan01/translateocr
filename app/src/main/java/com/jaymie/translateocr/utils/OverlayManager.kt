@@ -44,6 +44,7 @@ class OverlayManager private constructor() {
     /**
      * Shows the overlay on the screen.
      */
+    @SuppressLint("InflateParams")
     fun showOverlay(context: Context) {
         try {
             if (overlayView != null) {
@@ -213,12 +214,17 @@ class OverlayManager private constructor() {
     }
 
     private fun getStatusBarHeight(context: Context): Int {
-        val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resourceId > 0) {
-            context.resources.getDimensionPixelSize(resourceId)
-        } else {
-            0
+        // Method 1: Use WindowInsets (for API 30+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            val windowManager = context.getSystemService(WindowManager::class.java)
+            val currentWindowMetrics = windowManager.currentWindowMetrics
+            return currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                WindowInsets.Type.statusBars()
+            ).top
         }
+
+        // Method 2: Fallback - use density-based calculation
+        return (24 * context.resources.displayMetrics.density).toInt()
     }
 
     fun getValidTextForTranslation(textBlocks: List<Text.TextBlock>, context: Context): String {
@@ -251,7 +257,46 @@ class OverlayManager private constructor() {
         textBlocks: List<TranslateAccessibilityService.TextBlock>,
         translations: List<String>
     ) {
-        // Update your overlay UI to show translations at the exact positions
-        // of the original text using the bounds information from textBlocks
+        if (overlayView == null) return
+
+        try {
+            overlayContainer?.let { container ->
+                container.removeAllViews()
+                
+                textBlocks.forEachIndexed { index, block ->
+                    val translation = translations.getOrNull(index) ?: return@forEachIndexed
+                    
+                    val textView = LayoutInflater.from(container.context)
+                        .inflate(R.layout.ocr_text_overlay, container, false) as TextView
+                    
+                    textView.text = translation
+                    
+                    val params = FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    
+                    // Use the exact bounds from accessibility service
+                    val bounds = block.bounds
+                    params.leftMargin = bounds.left
+                    params.topMargin = bounds.top
+                    params.width = bounds.width()
+                    params.height = bounds.height()
+                    
+                    // Add padding
+                    val padding = (bounds.height() * 0.1f).toInt()
+                    textView.setPadding(padding, padding, padding, padding)
+                    
+                    textView.elevation = 10f
+                    params.gravity = Gravity.NO_GRAVITY
+                    
+                    container.addView(textView, params)
+                }
+                
+                showLoading(false)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating overlay with high precision", e)
+        }
     }
 }
