@@ -9,6 +9,12 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import android.view.LayoutInflater
+import android.view.View
+import android.view.Window
+import android.widget.Button
+import android.app.Dialog
+import com.jaymie.translateocr.R
 
 object PermissionUtils {
     // Check if the app has permission to draw over other apps
@@ -85,5 +91,32 @@ object PermissionUtils {
                 requestCode
             )
         }
+    }
+
+    fun showOverlayPermissionDialog(context: Context, onAccept: () -> Unit) {
+        val dialog = Dialog(context)
+        val dialogView = LayoutInflater.from(context).inflate(R.layout.permission_dialog, null)
+        dialog.setContentView(dialogView)
+
+        dialogView.findViewById<Button>(R.id.permissionButton).setOnClickListener {
+            onAccept()
+            dialog.dismiss()
+        }
+        dialog.setCancelable(true)
+        dialog.show()
+    }
+
+    fun showScreenRecordingPermissionDialog(context: Context, onAccept: () -> Unit) {
+        val dialog = Dialog(context)
+        val dialogView = LayoutInflater.from(context)
+            .inflate(R.layout.screen_recording_permission_dialog, null)
+        dialog.setContentView(dialogView)
+
+        dialogView.findViewById<Button>(R.id.permissionButton).setOnClickListener {
+            onAccept()
+            dialog.dismiss()
+        }
+        dialog.setCancelable(true)
+        dialog.show()
     }
 }
