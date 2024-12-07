@@ -87,8 +87,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableLiveData(HomeUiState())
 
-    private val _navigationEvent = MutableLiveData<Event<HomeNavigationEvent>>()
-
     init {
         setDefaultLanguages()
         observeAccessibilityService()
@@ -572,10 +570,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setHighPrecisionMode(enabled: Boolean) {
-        _isHighPrecisionEnabled.value = enabled
-    }
-
     private suspend fun isModelDownloaded(): Boolean {
         return translationRepository.isModelDownloaded(
             sourceLanguage = sourceLanguage.value ?: "en",
@@ -597,9 +591,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun updateUiState(update: (HomeUiState) -> HomeUiState) {
-        _uiState.value = update(_uiState.value ?: HomeUiState())
-    }
 }
 
 data class HomeUiState(
@@ -610,14 +601,3 @@ data class HomeUiState(
     val showFloatingButton: Boolean = false,
     val isLoading: Boolean = false
 )
-
-sealed class HomeNavigationEvent {
-    data class ShowLanguageSelect(val isFromLanguage: Boolean) : HomeNavigationEvent()
-    data class ShowPermissionDialog(val permissionType: PermissionType) : HomeNavigationEvent()
-    data object ShowAccessibilitySettings : HomeNavigationEvent()
-    data object RequestScreenCapture : HomeNavigationEvent()
-}
-
-enum class PermissionType {
-    OVERLAY, SCREEN_RECORDING
-}
