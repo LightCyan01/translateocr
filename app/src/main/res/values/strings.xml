@@ -18,5 +18,7 @@
     <string name="cancel">Cancel</string>
     <string name="select_source_language">Select Source Language</string>
     <string name="select_target_language">Select Target Language</string>
-
+    <string name="no_translations">No translations yet</string>
+    <string name="login_to_view_history">Login to view your translation history</string>
+    <string name="login">Login</string>
 </resources>
