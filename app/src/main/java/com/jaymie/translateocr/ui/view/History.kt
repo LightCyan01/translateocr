@@ -16,10 +16,9 @@ import com.jaymie.translateocr.ui.viewmodel.HistoryViewModel
 import com.jaymie.translateocr.ui.view.Login
 
 class History : Fragment() {
-    private val viewModel: HistoryViewModel by viewModels()
     private lateinit var binding: FragmentHistoryBinding
+    private val viewModel: HistoryViewModel by viewModels()
     private lateinit var historyAdapter: TranslationHistoryAdapter
-    private val auth = FirebaseAuth.getInstance()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -32,18 +31,12 @@ class History : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        updateUI()
+        setupUI()
+        observeViewModel()
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (auth.currentUser != null) {
-            loadTranslations()
-        }
-    }
-
-    private fun updateUI() {
-        if (auth.currentUser != null) {
+    private fun setupUI() {
+        if (viewModel.isUserLoggedIn()) {
             showHistoryView()
         } else {
             showLoginPrompt()
@@ -57,8 +50,6 @@ class History : Fragment() {
         }
         setupRecyclerView()
         setupSwipeRefresh()
-        observeViewModel()
-        loadTranslations()
     }
 
     private fun showLoginPrompt() {
@@ -71,9 +62,22 @@ class History : Fragment() {
         }
     }
 
+    private fun observeViewModel() {
+        viewModel.translations.observe(viewLifecycleOwner) { translations ->
+            historyAdapter.submitList(translations)
+            binding.emptyView.visibility = 
+                if (translations.isEmpty() && viewModel.isUserLoggedIn()) View.VISIBLE 
+                else View.GONE
+        }
+
+        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            binding.swipeRefresh.isRefreshing = isLoading
+        }
+    }
+
     private fun setupRecyclerView() {
         historyAdapter = TranslationHistoryAdapter()
-        binding.historyRecyclerView.apply {
+        binding.historyList.apply {
             adapter = historyAdapter
             layoutManager = LinearLayoutManager(requireContext())
             addItemDecoration(DividerItemDecoration(requireContext(), DividerItemDecoration.VERTICAL))
@@ -82,19 +86,15 @@ class History : Fragment() {
 
     private fun setupSwipeRefresh() {
         binding.swipeRefresh.setOnRefreshListener {
-            loadTranslations()
+            viewModel.loadTranslations()
         }
     }
 
-    private fun loadTranslations() {
-        viewModel.loadTranslations()
-    }
-
-    private fun observeViewModel() {
-        viewModel.translations.observe(viewLifecycleOwner) { translations ->
-            historyAdapter.submitList(translations)
-            binding.swipeRefresh.isRefreshing = false
-            binding.emptyState.visibility = if (translations.isEmpty()) View.VISIBLE else View.GONE
+    override fun onResume() {
+        super.onResume()
+        // Refresh translations when returning to fragment
+        if (viewModel.isUserLoggedIn()) {
+            viewModel.loadTranslations()
         }
     }
 }
