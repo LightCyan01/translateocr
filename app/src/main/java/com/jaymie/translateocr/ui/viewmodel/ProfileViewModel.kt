@@ -33,7 +33,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun loadUserData() {
-        // Get current user's email as username
+        // current user's email as usernae
         auth.currentUser?.let { user ->
             _username.value = user.email ?: "User"
         }
@@ -109,7 +109,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     }
 
     sealed class ProfilePictureState {
-        object Loading : ProfilePictureState()
+        data object Loading : ProfilePictureState()
         data class Success(val uri: Uri) : ProfilePictureState()
         data class Error(val message: String) : ProfilePictureState()
     }
