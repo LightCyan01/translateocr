@@ -1,6 +1,12 @@
 package com.jaymie.translateocr.data.repository
 
+import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.nl.translate.Translator
+import com.google.mlkit.nl.translate.TranslatorOptions
+import com.jaymie.translateocr.data.model.TranslationService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -8,7 +14,14 @@ import java.net.URL
 import java.net.URLEncoder
 
 /**
- * Repository handling translation operations for different services
+ * Repository handling translation operations for different translation services.
+ * Supports:
+ * - Google Translate (Free and API)
+ * - DeepL (Free and API)
+ * - ML Kit Offline Translation
+ *
+ * All translation operations are performed in a coroutine context using [Dispatchers.IO]
+ * for network and disk operations.
  */
 class TranslationRepository {
     companion object {
@@ -17,6 +30,72 @@ class TranslationRepository {
         private const val GOOGLE_API_KEY = "AIzaSyBbqNXjC71FoTXuyRrhF-rzLts65qArJyc"
         private const val DEEPL_API_KEY = "09993180-00e7-4bc8-abe3-c63a71e1d05d:fx"
         private const val TEST_TEXT = "Hello"
+        private const val TIMEOUT_MS = 10000
+    }
+
+    // Primary translation function used by the app
+    suspend fun translate(
+        text: String,
+        sourceLanguage: String,
+        targetLanguage: String,
+        service: TranslationService,
+        apiKey: String? = null
+    ): String {
+        return when (service) {
+            TranslationService.OFFLINE -> {
+                translateOffline(text, sourceLanguage, targetLanguage)
+            }
+            TranslationService.GOOGLE_TRANSLATE,
+            TranslationService.GOOGLE_TRANSLATE_API -> translateWithGoogle(text, sourceLanguage, targetLanguage, apiKey)
+            TranslationService.DEEPL,
+            TranslationService.DEEPL_API -> translateWithDeepL(text, sourceLanguage, targetLanguage, apiKey)
+        }
+    }
+
+    /**
+     * Performs offline translation using ML Kit.
+     * Uses [kotlinx.coroutines.tasks.await] to handle ML Kit's Tasks API.
+     *
+     * @param text Text to translate
+     * @param sourceLanguage Source language code
+     * @param targetLanguage Target language code
+     * @throws Exception if model is not downloaded or translation fails
+     */
+    suspend fun translateOffline(text: String, sourceLanguage: String, targetLanguage: String): String {
+        val options = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.fromLanguageTag(sourceLanguage) ?: sourceLanguage)
+            .setTargetLanguage(TranslateLanguage.fromLanguageTag(targetLanguage) ?: targetLanguage)
+            .build()
+        val translator = Translation.getClient(options)
+
+        return try {
+            // Awaits ML Kit's Task completion
+            translator.translate(text).await()
+        } catch (e: Exception) {
+            throw Exception("Offline translation failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Checks if an ML Kit translation model is downloaded.
+     * Executes in the coroutine context provided by the caller.
+     *
+     * @param sourceLanguage Source language code
+     * @param targetLanguage Target language code
+     * @return true if model is downloaded and ready to use
+     */
+    suspend fun isModelDownloaded(sourceLanguage: String, targetLanguage: String): Boolean {
+        val options = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.fromLanguageTag(sourceLanguage) ?: sourceLanguage)
+            .setTargetLanguage(TranslateLanguage.fromLanguageTag(targetLanguage) ?: targetLanguage)
+            .build()
+        val translator = Translation.getClient(options)
+        return try {
+            translator.downloadModelIfNeeded().await()
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 
     /**
@@ -182,8 +261,8 @@ class TranslationRepository {
 
     private fun createConnection(url: String): HttpURLConnection {
         return (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 10000
-            readTimeout = 10000
+            connectTimeout = TIMEOUT_MS
+            readTimeout = TIMEOUT_MS
         }
     }
 }
