@@ -94,4 +94,7 @@ dependencies {
 
     // Firebase Firestore
     implementation(libs.firebase.firestore)
+
+    //Gson
+    implementation(libs.gson)
 }

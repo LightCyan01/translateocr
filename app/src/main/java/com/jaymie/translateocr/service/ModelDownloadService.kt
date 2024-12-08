@@ -63,7 +63,7 @@ class ModelDownloadService : Service() {
                     )
                 }
             } finally {
-                stopForeground(true)
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
         }

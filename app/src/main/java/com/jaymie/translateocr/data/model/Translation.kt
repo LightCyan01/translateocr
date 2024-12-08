@@ -1,7 +1,7 @@
 package com.jaymie.translateocr.data.model
 
 data class Translation(
-    val id: String = "",  // Timestamp as ID
+    val id: String = "",
     val originalText: String = "",
     val translatedText: String = "",
     val fromLanguage: String = "",

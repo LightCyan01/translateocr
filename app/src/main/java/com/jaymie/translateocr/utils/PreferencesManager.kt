@@ -5,7 +5,6 @@ import android.content.Context
 class PreferencesManager(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    // Add configuration change handling
     private var lastConfigChange = 0L
     private val configChangeThreshold = 500L
 

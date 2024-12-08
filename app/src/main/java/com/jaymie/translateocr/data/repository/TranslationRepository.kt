@@ -1,12 +1,13 @@
 package com.jaymie.translateocr.data.repository
 
+import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -22,6 +23,8 @@ import java.net.URLEncoder
  * for network and disk operations.
  */
 class TranslationRepository {
+    private val gson = Gson()
+
     companion object {
         private const val GOOGLE_TRANSLATE_URL = "https://translation.googleapis.com/language/translate/v2"
         private const val DEEPL_URL = "https://api-free.deepl.com/v2/translate"
@@ -132,10 +135,10 @@ class TranslationRepository {
         apiKey: String
     ): String = withContext(Dispatchers.IO) {
         val requestUrl = "$GOOGLE_TRANSLATE_URL?key=$apiKey"
-        val jsonBody = JSONObject().apply {
-            put("q", text)
-            put("source", sourceLanguage.lowercase())
-            put("target", targetLanguage.lowercase())
+        val requestBody = JsonObject().apply {
+            addProperty("q", text)
+            addProperty("source", sourceLanguage.lowercase())
+            addProperty("target", targetLanguage.lowercase())
         }
 
         val connection = createConnection(requestUrl).apply {
@@ -143,15 +146,19 @@ class TranslationRepository {
             setRequestProperty("Content-Type", "application/json; charset=UTF-8")
             setRequestProperty("Accept", "application/json")
             doOutput = true
-            outputStream.use { it.write(jsonBody.toString().toByteArray()) }
+            outputStream.use { it.write(requestBody.toString().toByteArray()) }
         }
 
         if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-            val response = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            response.getJSONObject("data")
-                .getJSONArray("translations")
-                .getJSONObject(0)
-                .getString("translatedText")
+            val response = connection.inputStream.bufferedReader().use { it.readText() }
+            val jsonResponse = gson.fromJson(response, JsonObject::class.java)
+            jsonResponse
+                .getAsJsonObject("data")
+                .getAsJsonArray("translations")
+                .first()
+                .asJsonObject
+                .get("translatedText")
+                .asString
         } else {
             throw Exception("HTTP error code: ${connection.responseCode}")
         }
@@ -178,10 +185,14 @@ class TranslationRepository {
         }
 
         if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-            val response = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            response.getJSONArray("translations")
-                .getJSONObject(0)
-                .getString("text")
+            val response = connection.inputStream.bufferedReader().use { it.readText() }
+            val jsonResponse = gson.fromJson(response, JsonObject::class.java)
+            jsonResponse
+                .getAsJsonArray("translations")
+                .first()
+                .asJsonObject
+                .get("text")
+                .asString
         } else {
             throw Exception("HTTP error code: ${connection.responseCode}")
         }
@@ -195,10 +206,10 @@ class TranslationRepository {
         
         try {
             val requestUrl = "$GOOGLE_TRANSLATE_URL?key=$apiKey"
-            val jsonBody = JSONObject().apply {
-                put("q", TEST_TEXT)
-                put("source", "en")
-                put("target", "ja")
+            val requestBody = JsonObject().apply {
+                addProperty("q", TEST_TEXT)
+                addProperty("source", "en")
+                addProperty("target", "ja")
             }
 
             val connection = createConnection(requestUrl).apply {
@@ -206,7 +217,7 @@ class TranslationRepository {
                 setRequestProperty("Content-Type", "application/json; charset=UTF-8")
                 setRequestProperty("Accept", "application/json")
                 doOutput = true
-                outputStream.use { it.write(jsonBody.toString().toByteArray()) }
+                outputStream.use { it.write(requestBody.toString().toByteArray()) }
             }
 
             connection.responseCode == HttpURLConnection.HTTP_OK

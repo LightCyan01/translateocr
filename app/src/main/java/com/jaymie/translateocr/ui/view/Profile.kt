@@ -60,7 +60,7 @@ class Profile : AppCompatActivity() {
             finish()
         }
 
-        // Add menu to toolbar with sign out option
+        // Inflate menu and handle sign out action
         binding.toolbarProfile.inflateMenu(R.menu.profile_menu)
         binding.toolbarProfile.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {

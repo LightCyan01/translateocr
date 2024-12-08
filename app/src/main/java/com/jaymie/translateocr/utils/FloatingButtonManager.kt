@@ -6,11 +6,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.PixelFormat
+import android.os.Build
 import android.util.DisplayMetrics
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.ProgressBar
@@ -42,15 +44,34 @@ class FloatingButtonManager(private val context: Context) {
     private fun updateFloatingButtonPosition() {
         if (isShowing && floatingButtonView != null && currentLayoutParams != null) {
             try {
-                // Get new screen dimensions
+                // Get the window manager
                 val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-                val metrics = DisplayMetrics()
-                windowManager.defaultDisplay?.getMetrics(metrics)
 
-                // Ensure the button stays within screen bounds
+                // Get screen dimensions
+                val screenWidth: Int
+                val screenHeight: Int
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // Use the currentWindowMetrics API for API 30+
+                    val windowMetrics = windowManager.currentWindowMetrics
+                    val insets = windowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                        WindowInsets.Type.systemBars()
+                    )
+                    screenWidth = windowMetrics.bounds.width() - insets.left - insets.right
+                    screenHeight = windowMetrics.bounds.height() - insets.top - insets.bottom
+                } else {
+                    // Fallback to the deprecated getMetrics method for older APIs
+                    val metrics = DisplayMetrics()
+                    @Suppress("DEPRECATION")
+                    windowManager.defaultDisplay?.getMetrics(metrics)
+                    screenWidth = metrics.widthPixels
+                    screenHeight = metrics.heightPixels
+                }
+
+                // Ensure the floating button stays within screen bounds
                 currentLayoutParams?.let { params ->
-                    params.x = params.x.coerceIn(0, metrics.widthPixels - (floatingButtonView?.width ?: 0))
-                    params.y = params.y.coerceIn(0, metrics.heightPixels - (floatingButtonView?.height ?: 0))
+                    params.x = params.x.coerceIn(0, screenWidth - (floatingButtonView?.width ?: 0))
+                    params.y = params.y.coerceIn(0, screenHeight - (floatingButtonView?.height ?: 0))
                     this.windowManager?.updateViewLayout(floatingButtonView, params)
                 }
             } catch (e: Exception) {
@@ -61,7 +82,10 @@ class FloatingButtonManager(private val context: Context) {
 
     @SuppressLint("ClickableViewAccessibility")
     fun showFloatingButton(onClick: () -> Unit) {
-        if (isShowing) return
+        if (isShowing) {
+            // If already showing, remove it first to prevent duplicates
+            removeFloatingButton()
+        }
 
         try {
             val appContext = context.applicationContext
@@ -147,6 +171,8 @@ class FloatingButtonManager(private val context: Context) {
         } catch (e: Exception) {
             e.printStackTrace()
             isShowing = false
+            floatingButtonView = null
+            currentLayoutParams = null
         }
     }
 
@@ -156,7 +182,7 @@ class FloatingButtonManager(private val context: Context) {
 
     fun removeFloatingButton() {
         try {
-            if (floatingButtonView != null && isShowing) {
+            if (floatingButtonView != null) {
                 windowManager?.removeView(floatingButtonView)
                 floatingButtonView = null
                 currentLayoutParams = null
@@ -164,13 +190,23 @@ class FloatingButtonManager(private val context: Context) {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        } finally {
+            // Ensure state is reset even if removal fails
+            floatingButtonView = null
+            currentLayoutParams = null
+            isShowing = false
         }
     }
 
     fun cleanup() {
         try {
             removeFloatingButton()
-            context.applicationContext.unregisterReceiver(configurationChangeReceiver)
+            try {
+                context.applicationContext.unregisterReceiver(configurationChangeReceiver)
+            } catch (e: IllegalArgumentException) {
+                // Receiver not registered, ignore
+            }
+            windowManager = null
         } catch (e: Exception) {
             e.printStackTrace()
         }

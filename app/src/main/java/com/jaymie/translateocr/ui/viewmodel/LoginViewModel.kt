@@ -90,7 +90,6 @@ class LoginViewModel : ViewModel() {
                         _loginResult.value = Event(LoginResult.Error("An account with this email already exists"))
                         return@launch
                     }
-                    // proceed with registration
                 }
 
                 // Create new user

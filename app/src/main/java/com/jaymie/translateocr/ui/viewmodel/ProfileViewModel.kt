@@ -97,7 +97,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun resizeAndCompressBitmap(original: android.graphics.Bitmap): android.graphics.Bitmap {
-        val maxDimension = 1024 // Max width or height
+        val maxDimension = 1024
         val width = original.width
         val height = original.height
 

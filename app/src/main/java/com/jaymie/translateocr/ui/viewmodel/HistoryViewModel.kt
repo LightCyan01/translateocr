@@ -21,7 +21,6 @@ class HistoryViewModel : ViewModel() {
     val isLoading: LiveData<Boolean> = _isLoading
 
     init {
-        // Load translations immediately when ViewModel is created
         if (auth.currentUser != null) {
             loadTranslations()
         }

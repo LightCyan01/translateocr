@@ -285,7 +285,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             TranslationService.GOOGLE_TRANSLATE,
             TranslationService.DEEPL,
             TranslationService.OFFLINE -> {
-                // No API key validation needed for these services
+                // These services don't require API keys, so no action needed
             }
         }
 
@@ -352,8 +352,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun setDefaultLanguagesForService(service: TranslationService) {
         val isDeepL = service == TranslationService.DEEPL || service == TranslationService.DEEPL_API
-        
-        // Use the language's name property instead of code for display
+
         val sourceLanguage = if (isDeepL) {
             DeepLConstants.SUPPORTED_SOURCE_LANGUAGES.find { it.code == "EN" }
         } else {
@@ -384,7 +383,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             clearTranslationState()
             floatingButtonManager.cleanup()
         }
-        // Remove the observer properly
+
         accessibilityObserver?.let {
             TranslateAccessibilityService.screenText.removeObserver(it)
         }
@@ -564,7 +563,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         } catch (e: Exception) {
             Log.e("HomeViewModel", "Error updating word count", e)
-            // Don't throw the exception to prevent translation failure
         }
     }
 
@@ -575,7 +573,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    // Store the observer reference for proper cleanup
     private var accessibilityObserver: ((List<TranslateAccessibilityService.TextBlock>) -> Unit)? = null
 
     private fun observeAccessibilityService() {

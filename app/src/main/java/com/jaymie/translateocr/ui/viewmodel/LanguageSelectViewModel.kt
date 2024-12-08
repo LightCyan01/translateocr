@@ -25,9 +25,8 @@ class LanguageSelectViewModel(application: Application) : AndroidViewModel(appli
     val downloadEvent: LiveData<Event<DownloadEvent>> = _downloadEvent
 
     init {
-        // Get parameters from saved state handle
-        val isFromLanguage = true // Get from saved state
-        val isDeepL = false // Get from saved state
+        val isFromLanguage = true
+        val isDeepL = false
         updateUiState { it.copy(
             isFromLanguage = isFromLanguage,
             isDeepL = isDeepL

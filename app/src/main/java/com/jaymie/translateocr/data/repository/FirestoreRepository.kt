@@ -15,12 +15,12 @@ class FirestoreRepository {
     private val userStatsRef = db.collection("user_stats")
 
     suspend fun updateUserStats(wordsTranslated: Int) {
-        if (auth.currentUser == null) return  // Early return if no user
+        if (auth.currentUser == null) return
 
         try {
             val docRef = userStatsRef.document(auth.currentUser!!.uid)
             db.runTransaction { transaction ->
-                val snapshot = transaction.get(docRef)
+                val snapshot = transaction[docRef]
                 val currentStats = snapshot.toObject(UserStats::class.java)
                 val newTotal = (currentStats?.totalWordsTranslated ?: 0) + wordsTranslated
                 
@@ -29,8 +29,8 @@ class FirestoreRepository {
                     totalWordsTranslated = newTotal,
                     lastUpdated = System.currentTimeMillis()
                 )
-                
-                transaction.set(docRef, updatedStats)
+
+                transaction[docRef] = updatedStats
             }.await()
         } catch (e: Exception) {
             // Silently fail for non-critical updates

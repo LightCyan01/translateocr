@@ -42,7 +42,7 @@ class TranslateAccessibilityService : AccessibilityService() {
                         processScreenContent()
                     }
                 }
-                else -> { /* ignore other event types */ }
+                else -> { }
             }
         }
     }

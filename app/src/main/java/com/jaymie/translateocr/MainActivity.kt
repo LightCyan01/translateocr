@@ -60,7 +60,7 @@ class MainActivity : AppCompatActivity() {
     private fun checkNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             !prefs.getBoolean("notification_permission_checked", false)) {
-            registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
                 prefs.edit().putBoolean("notification_permission_checked", true).apply()
             }.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
