@@ -1,6 +1,6 @@
 # TranslateOCR
 
-An Android app that captures on-screen text using OCR and translates it in real time, displaying the result as a floating overlay — no copy-pasting required.
+An Android app that captures on-screen text using OCR and translates it in real time.
 
 ---
 
