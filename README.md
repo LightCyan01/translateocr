@@ -21,12 +21,6 @@ An Android app that captures on-screen text using OCR and translates it in real 
 
 ---
 
-## Screenshots
-
-> _Add screenshots here once the app is running on a device or emulator._
-
----
-
 ## Requirements
 
 | Item | Version |
